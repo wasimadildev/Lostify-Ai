@@ -148,3 +148,61 @@ dist
 .svelte-kit
 
 # End of https://www.toptal.com/developers/gitignore/api/node
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.dylib
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE / editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter notebooks (optional – keep if you use them)
+.ipynb_checkpoints/
+
+# Logs and temporary files
+logs/
+*.log
+tmp/
+temp/
+
+# Model weights / large binary files (adjust as needed)
+*.pt
+*.pth
+*.h5
+*.pb
+*.onnx
+*.tflite
+*.joblib
+*.pickle
+
+# Embeddings folder – you may decide to keep it or not
+# Since you have only 10 .npy files, you could commit them.
+# If you later have many, uncomment the line below:
+# embeddings/
+
+# Any output data
+outputs/
+results/
+*.npy   # only if you don't want to commit any .npy files
