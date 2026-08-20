@@ -563,11 +563,11 @@ Cat 1 ↔ Dog:   0.6956
 
 ## Retrieval
 
-- [ ] Create 5–10 Lostify case images
-- [ ] Create one query image
-- [ ] Compare query with all cases
-- [ ] Sort similarity scores
-- [ ] Return Top-5 cases
+- [x] Create 5–10 Lostify case images
+- [x] Create one query image
+- [x] Compare query with all cases
+- [x] Sort similarity scores
+- [x] Return Top-5 cases
 
 The last five tasks are the immediate practical task that carries into the beginning of Week 02.
 

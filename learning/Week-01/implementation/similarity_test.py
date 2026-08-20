@@ -20,7 +20,7 @@ model.eval()
 
 
 # ==========================================
-# 2. Function to generate image embedding
+# 2. Generate image embedding
 # ==========================================
 
 def get_image_embedding(image_path):
@@ -42,7 +42,7 @@ def get_image_embedding(image_path):
             image_features
         )
 
-    # Normalize
+    # Normalize embedding
     image_features = image_features / image_features.norm(
         dim=-1,
         keepdim=True
@@ -52,49 +52,103 @@ def get_image_embedding(image_path):
 
 
 # ==========================================
-# 3. Generate embeddings
+# 3. Query image
 # ==========================================
 
-cat1_embedding = get_image_embedding(
-    "images/cat.jpeg"
-)
+query_path = "images/query.jpg"
 
-cat2_embedding = get_image_embedding(
-    "images/cat2.jpg"
-)
-
-dog_embedding = get_image_embedding(
-    "images/dog.jpeg"
+query_embedding = get_image_embedding(
+    query_path
 )
 
 
 # ==========================================
-# 4. Compare images
+# 4. Case images
 # ==========================================
 
-cat_similarity = cosine_similarity(
-    cat1_embedding,
-    cat2_embedding
-)[0][0]
-
-dog_similarity = cosine_similarity(
-    cat1_embedding,
-    dog_embedding
-)[0][0]
+cases = [
+    "Case-01.jpg",
+    "Case-02.jpg",
+    "Case-03.jpg",
+    "Case-04.jpg",
+    "Case-05.jpg",
+    "Case-06.jpg",
+    "Case-07.jpg",
+    "Case-08.jpg",
+    "Case-09.jpg",
+    "Case-10.jpg"
+]
 
 
 # ==========================================
-# 5. Display results
+# 5. Calculate similarity
+# ==========================================
+
+results = []
+
+for case in cases:
+
+    case_path = f"images/{case}"
+
+    case_embedding = get_image_embedding(
+        case_path
+    )
+
+    similarity = cosine_similarity(
+        query_embedding,
+        case_embedding
+    )[0][0]
+
+    results.append(
+        (case, similarity)
+    )
+
+
+# ==========================================
+# 6. Sort highest similarity first
+# ==========================================
+
+results.sort(
+    key=lambda x: x[1],
+    reverse=True
+)
+
+
+# ==========================================
+# 7. Display all results
 # ==========================================
 
 print("\n==============================")
-print("   LOSTIFY AI SIMILARITY")
+print("      LOSTIFY AI")
+print("   IMAGE SIMILARITY SEARCH")
 print("==============================\n")
 
-print(
-    f"Cat 1 ↔ Cat 2: {cat_similarity:.4f}"
-)
+print("Query:", query_path)
 
-print(
-    f"Cat 1 ↔ Dog: {dog_similarity:.4f}"
-)
+print("\nAll Cases:")
+
+for case, score in results:
+
+    print(
+        f"{case} → {score:.4f}"
+    )
+
+
+# ==========================================
+# 8. Top 5 results
+# ==========================================
+
+top_5 = results[:5]
+
+print("\n==============================")
+print("        TOP 5 MATCHES")
+print("==============================\n")
+
+for rank, (case, score) in enumerate(
+    top_5,
+    start=1
+):
+
+    print(
+        f"{rank}. {case} → {score:.4f}"
+    )
