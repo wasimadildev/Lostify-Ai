@@ -1,0 +1,15 @@
+[
+  {
+    "id": "report-903db278-d71e-49b4-bd77-56f4440cc396",
+    "type": "lost",
+    "title": "Lost backpack",
+    "description": "Black backpack with laptop inside",
+    "category": "Bag",
+    "location": "Bus station",
+    "contactName": "Your Name",
+    "contactEmail": "you@example.com",
+    "imageUrl": "/uploads/report-903db278-d71e-49b4-bd77-56f4440cc396.jpg",
+    "createdAt": "2026-08-20T04:35:59.971Z",
+    "updatedAt": "2026-08-20T04:35:59.971Z"
+  }
+]

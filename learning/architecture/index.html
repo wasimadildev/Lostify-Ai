@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lostify AI — Weekly Architecture Diagrams</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="hero">
+    <span class="brand">Lostify AI</span>
+    <h1>AI Architecture Evolution</h1>
+    <p class="sub">Week 1 → Week 7 &middot; From image similarity to a complete event-driven application</p>
+
+    <nav class="week-nav">
+      <a href="#week1" class="w1"><span class="dot"></span>Week 1 · CLIP Fundamentals</a>
+      <a href="#week2" class="w2"><span class="dot"></span>Week 2 · Embeddings &amp; FAISS</a>
+      <a href="#week3" class="w3"><span class="dot"></span>Week 3 · Filtering &amp; Ranking</a>
+      <a href="#week4" class="w4"><span class="dot"></span>Week 4 · YOLO + OCR + Face</a>
+      <a href="#week5" class="w5"><span class="dot"></span>Week 5 · Fine-tuning &amp; Re-ranking</a>
+      <a href="#week6" class="w6"><span class="dot"></span>Week 6 · Production AI Service</a>
+      <a href="#week7" class="w7"><span class="dot"></span>Week 7 · Integration &amp; Events</a>
+    </nav>
+  </header>
+
+  <main class="page">
+
+    <!-- ================================================== -->
+    <!-- WEEK 1                                             -->
+    <!-- ================================================== -->
+    <section id="week1" class="week s-w1">
+      <header class="week-header">
+        <h2>Week 01 — AI Fundamentals &amp; Image Similarity</h2>
+        <p>Single-script proof of concept: one image through the pretrained CLIP model → similarity score.</p>
+      </header>
+
+      <div class="diagram">
+        <div class="flow" style="display:flex; flex-direction:column; align-items:center;">
+          <div class="node c-slate wide">
+            <span class="tag">Input</span>
+            <h4>Query Image</h4>
+            <p>Lost item / pet / person photo</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-blue">
+            <span class="tag">Pretrained Model</span>
+            <h4>CLIP</h4>
+            <p>OpenAI <span class="hl">clip-vit-base-patch32</span><br>vision encoder + visual projection</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-cyan">
+            <span class="tag">Embedding</span>
+            <h4>512-Dimensional Vector</h4>
+            <p>A numerical representation of the image</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-green">
+            <span class="tag">Preprocessing</span>
+            <h4>Normalization</h4>
+            <p>Unit-length vector for consistent comparison</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-violet">
+            <span class="tag">Matching</span>
+            <h4>Cosine Similarity</h4>
+            <p><span class="hl">(A · B) / (||A|| × ||B||)</span></p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-red focus wide">
+            <span class="tag">Output</span>
+            <h4>Similarity Score</h4>
+            <p>Cat↔Cat 0.7412 · Cat↔Dog 0.6956</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- WEEK 2                                             -->
+    <!-- ================================================== -->
+    <section id="week2" class="week s-w2">
+      <header class="week-header">
+        <h2>Week 02 — Precomputed Embeddings &amp; FAISS</h2>
+        <p>Two-stage pipeline: case embeddings are precomputed once, the query is embedded at search time.</p>
+      </header>
+
+      <div class="diagram">
+        <div class="flow" style="display:flex; flex-direction:column; align-items:center;">
+          <div class="cols-2">
+            <div class="col">
+              <span class="branch-label">Offline · generate_embeddings.py</span>
+              <div class="node c-slate">
+                <span class="tag">Store</span>
+                <h4>Case Images</h4>
+                <p>Case-01 … Case-10</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-blue">
+                <span class="tag">Model</span>
+                <h4>CLIP Image Encoder</h4>
+                <p>Runs once per case, never at query time</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-cyan focus">
+                <span class="tag">Storage</span>
+                <h4>Saved .npy Vectors</h4>
+                <p>Normalized <span class="hl">512-D</span> per case</p>
+              </div>
+            </div>
+
+            <div class="col">
+              <span class="branch-label">Online · similarity_search.py</span>
+              <div class="node c-slate">
+                <span class="tag">Query</span>
+                <h4>Query Image</h4>
+                <p>New lost report photo</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-blue">
+                <span class="tag">Model</span>
+                <h4>CLIP Image Encoder</h4>
+                <p>Only the query uses CLIP inference</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-cyan">
+                <span class="tag">Compute</span>
+                <h4>Query Embedding</h4>
+                <p>Normalized <span class="hl">512-D</span></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-2">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="60" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="180" y2="37"/>
+              <polygon class="tip" points="55,36 65,36 60,43"/>
+              <polygon class="tip" points="175,36 185,36 180,43"/>
+            </svg>
+          </div>
+
+          <div class="node c-violet wide">
+            <span class="tag">Vector Store · build_faiss_index.py</span>
+            <h4>FAISS Index</h4>
+            <p><span class="hl">IndexFlatIP(512)</span> · L2-normalized · inner product = cosine</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-amber wide">
+            <span class="tag">Enrichment</span>
+            <h4>Ranked Similarity + Metadata</h4>
+            <p>Top-5 cases with title, category, location, description</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-red focus wide">
+            <span class="tag">Service · app.py</span>
+            <h4>FastAPI &middot; POST /search</h4>
+            <p>Loads CLIP + FAISS once at startup, serves <span class="hl">top_k</span> results</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- WEEK 3                                             -->
+    <!-- ================================================== -->
+    <section id="week3" class="week s-w3">
+      <header class="week-header">
+        <h2>Week 03 — Filtering, Ranking &amp; Multimodal Search</h2>
+        <p>From "visually similar" to "the right case": metadata filtering, explainable combined scores, and accuracy evaluation.</p>
+      </header>
+
+      <div class="diagram">
+        <div class="flow" style="display:flex; flex-direction:column; align-items:center;">
+          <div class="node c-slate wide">
+            <span class="tag">Input</span>
+            <h4>User Search / Report</h4>
+            <p>Image + text + metadata (type, location, date)</p>
+          </div>
+
+          <div class="fan-split fan-w-2">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="60" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="180" y2="37"/>
+              <polygon class="tip" points="55,36 65,36 60,43"/>
+              <polygon class="tip" points="175,36 185,36 180,43"/>
+            </svg>
+          </div>
+
+          <div class="cols-2">
+            <div class="col">
+              <span class="branch-label">Visual Query</span>
+              <div class="node c-slate">
+                <span class="tag">Input</span>
+                <h4>Image</h4>
+                <p>Uploaded report photo</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-blue">
+                <span class="tag">Model</span>
+                <h4>CLIP</h4>
+                <p>Image embedding <span class="hl">512-D</span></p>
+              </div>
+            </div>
+
+            <div class="col">
+              <span class="branch-label">Text Query</span>
+              <div class="node c-slate">
+                <span class="tag">Input</span>
+                <h4>Text</h4>
+                <p>"White Persian cat, blue collar, Islamabad"</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-blue">
+                <span class="tag">Model</span>
+                <h4>CLIP</h4>
+                <p>Text embedding <span class="hl">512-D</span></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-2">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="60" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="180" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+            </svg>
+          </div>
+
+          <div class="node c-teal wide">
+            <span class="tag">Fusion · multimodal_service.py</span>
+            <h4>Combined Embedding</h4>
+            <p><span class="hl">0.7 × image + 0.3 × text</span> &rarr; L2-normalize &rarr; one FAISS search</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-violet wide">
+            <span class="tag">Vector Store</span>
+            <h4>FAISS · Top 20 Candidates</h4>
+            <p>Wide net; filtering happens next</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-amber wide">
+            <span class="tag">filtering_service.py</span>
+            <h4>Metadata Filtering</h4>
+            <p>case_type (pet / item / person) · category · location · date</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-red wide">
+            <span class="tag">ranking_service.py</span>
+            <h4>Ranking Engine</h4>
+            <p>Final = <span class="hl">0.70·visual + 0.20·text + 0.10·location</span></p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-green wide">
+            <span class="tag">Output</span>
+            <h4>Final Score (0–1)</h4>
+            <p>visual_score · text_score · location_score · final_score</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="row" style="gap:18px;">
+            <div class="node c-slate">
+              <span class="tag">Service · app.py</span>
+              <h4>FastAPI</h4>
+              <p>POST /search · image and/or text</p>
+            </div>
+            <div class="node c-indigo focus">
+              <span class="tag">Client</span>
+              <h4>Frontend</h4>
+              <p>Top 5 matches to the user</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="item"><span class="swatch" style="color:var(--teal); background:var(--teal)"></span>Multimodal fusion</span>
+        <span class="item"><span class="swatch" style="color:var(--violet); background:var(--violet)"></span>FAISS vector store</span>
+        <span class="item"><span class="swatch" style="color:var(--amber); background:var(--amber)"></span>Filtering</span>
+        <span class="item"><span class="swatch" style="color:var(--red); background:var(--red)"></span>Ranking</span>
+      </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- WEEK 4                                             -->
+    <!-- ================================================== -->
+    <section id="week4" class="week s-w4">
+      <header class="week-header">
+        <h2>Week 04 — Specialized AI Models: YOLO + OCR + Face Recognition</h2>
+        <p>Image analysis layer on top of the matching engine: structured objects, OCR text, and face embeddings.</p>
+      </header>
+
+      <div class="diagram">
+        <div class="flow" style="display:flex; flex-direction:column; align-items:center;">
+
+          <div class="node c-slate wide">
+            <span class="tag">Input</span>
+            <h4>User Report</h4>
+            <p>Image + text + metadata</p>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="40" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="200" y2="37"/>
+              <polygon class="tip" points="35,36 45,36 40,43"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+              <polygon class="tip" points="195,36 205,36 200,43"/>
+            </svg>
+          </div>
+
+          <div class="cols-3">
+            <div class="col">
+              <span class="branch-label">Vision Path</span>
+              <div class="node c-slate">
+                <span class="tag">Input</span>
+                <h4>Image</h4>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-purple tall">
+                <span class="tag">Stage</span>
+                <h4>Image Analysis</h4>
+                <p>Runs the analysis models below</p>
+              </div>
+            </div>
+
+            <div class="col">
+              <span class="branch-label">Text Path</span>
+              <div class="node c-slate">
+                <span class="tag">Input</span>
+                <h4>Text</h4>
+                <p>Description of the report</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-blue">
+                <span class="tag">Model</span>
+                <h4>CLIP Text Encoder</h4>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-cyan">
+                <span class="tag">Vector</span>
+                <h4>Text Embedding</h4>
+                <p><span class="hl">512-D</span></p>
+              </div>
+            </div>
+
+            <div class="col">
+              <span class="branch-label">Metadata Path</span>
+              <div class="node c-slate">
+                <span class="tag">Input</span>
+                <h4>Metadata</h4>
+                <p>case_type · location · date</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-amber tall">
+                <span class="tag">Filter</span>
+                <h4>Metadata Filter</h4>
+                <p>Used during candidate filtering</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="40" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="200" y2="37"/>
+              <polygon class="tip" points="35,36 45,36 40,43"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+              <polygon class="tip" points="195,36 205,36 200,43"/>
+            </svg>
+          </div>
+
+          <div class="cols-3">
+            <div class="col">
+              <span class="branch-label">01-yolo · detect.py</span>
+              <div class="node c-orange">
+                <span class="tag">Model</span>
+                <h4>YOLO</h4>
+                <p>Ultralytics pretrained detection</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-orange small focus">
+                <span class="tag">Structured</span>
+                <h4>Objects</h4>
+                <p>class · confidence · bbox</p>
+              </div>
+            </div>
+
+            <div class="col">
+              <span class="branch-label">02-ocr · ocr.py</span>
+              <div class="node c-green">
+                <span class="tag">Model</span>
+                <h4>OCR</h4>
+                <p>PaddleOCR / PP-OCR</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-green small focus">
+                <span class="tag">Structured</span>
+                <h4>Detected Text</h4>
+                <p>"STMU" · "WASEEM" · confidence</p>
+              </div>
+            </div>
+
+            <div class="col">
+              <span class="branch-label">03-face · embed</span>
+              <div class="node c-pink">
+                <span class="tag">Model</span>
+                <h4>Face Detection</h4>
+                <p>Locate + align the face</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-pink small">
+                <span class="tag">Prepare</span>
+                <h4>Face Crop</h4>
+                <p>Aligned face region</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="40" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="200" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+            </svg>
+          </div>
+
+          <div class="node c-teal wide">
+            <span class="tag">04-feature-extraction · feature_extractor.py</span>
+            <h4>Unified Feature Extraction</h4>
+            <p>objects · ocr_text · faces · clip_embedding · face_embeddings</p>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="40" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="200" y2="37"/>
+              <polygon class="tip" points="35,36 45,36 40,43"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+              <polygon class="tip" points="195,36 205,36 200,43"/>
+            </svg>
+          </div>
+
+          <div class="cols-3">
+            <div class="col">
+              <span class="branch-label">Separate index spaces</span>
+              <div class="node c-violet focus">
+                <span class="tag">Vector Store</span>
+                <h4>CLIP FAISS</h4>
+                <p><span class="hl">512-D</span> image + text embeddings</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">Separate index spaces</span>
+              <div class="node c-pink focus">
+                <span class="tag">Vector Store</span>
+                <h4>Face FAISS</h4>
+                <p>Face-embedding dimensions</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">Separate index spaces</span>
+              <div class="node c-green focus">
+                <span class="tag">Store</span>
+                <h4>Metadata / OCR Index</h4>
+                <p>Text + structured fields</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="40" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="200" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+            </svg>
+          </div>
+
+          <div class="node c-indigo wide">
+            <span class="tag">05-ai-pipeline · pipeline.py</span>
+            <h4>Candidate Retrieval</h4>
+            <p>Collect candidates from CLIP + Face + Metadata/OCR</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-red wide">
+            <span class="tag">Ranking</span>
+            <h4>Ranking Engine</h4>
+            <p>Combine visual + text + face + OCR evidence</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-red focus wide">
+            <span class="tag">Output</span>
+            <h4>Top 5 Matches</h4>
+            <p>Ordered candidates with explainable scores</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="row" style="gap:18px;">
+            <div class="node c-slate">
+              <span class="tag">Service</span>
+              <h4>FastAPI</h4>
+              <p>Serves top-5 to the client</p>
+            </div>
+            <div class="node c-indigo focus">
+              <span class="tag">Client</span>
+              <h4>Flutter App</h4>
+              <p>Lostify AI mobile frontend</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="item"><span class="swatch" style="color:var(--orange); background:var(--orange)"></span>YOLO — objects + boxes</span>
+        <span class="item"><span class="swatch" style="color:var(--green); background:var(--green)"></span>OCR — detected text</span>
+        <span class="item"><span class="swatch" style="color:var(--pink); background:var(--pink)"></span>Face — embeddings</span>
+        <span class="item"><span class="swatch" style="color:var(--teal); background:var(--teal)"></span>Feature extraction</span>
+        <span class="item"><span class="swatch" style="color:var(--violet); background:var(--violet)"></span>Vector stores</span>
+        <span class="item"><span class="swatch" style="color:var(--red); background:var(--red)"></span>Ranking / output</span>
+      </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- WEEK 5                                             -->
+    <!-- ================================================== -->
+    <section id="week5" class="week s-w5">
+      <header class="week-header">
+        <h2>Week 05 — Model Fine-Tuning &amp; Better Matching</h2>
+        <p>Improve accuracy, not model count: dataset engineering, threshold optimization, contrastive fine-tuning, and a learned re-ranking engine with measured results.</p>
+      </header>
+
+      <div class="diagram">
+        <div class="flow" style="display:flex; flex-direction:column; align-items:center;">
+
+          <div class="node c-slate wide">
+            <span class="tag">Input</span>
+            <h4>User Report</h4>
+            <p>Image + text + metadata</p>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="40" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="200" y2="37"/>
+              <polygon class="tip" points="35,36 45,36 40,43"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+              <polygon class="tip" points="195,36 205,36 200,43"/>
+            </svg>
+          </div>
+
+          <div class="cols-3">
+            <div class="col">
+              <span class="branch-label">Vision Path</span>
+              <div class="node c-slate">
+                <span class="tag">Input</span>
+                <h4>Image</h4>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-purple tall">
+                <span class="tag">Stage</span>
+                <h4>Image Analysis</h4>
+                <p>YOLO · OCR · Face<br>04-feature-extraction</p>
+              </div>
+            </div>
+
+            <div class="col">
+              <span class="branch-label">Text Path</span>
+              <div class="node c-slate">
+                <span class="tag">Input</span>
+                <h4>Text</h4>
+                <p>Report description</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-blue">
+                <span class="tag">Model</span>
+                <h4>CLIP</h4>
+                <p>Text embedding</p>
+              </div>
+            </div>
+
+            <div class="col">
+              <span class="branch-label">Context</span>
+              <div class="node c-slate">
+                <span class="tag">Input</span>
+                <h4>Metadata</h4>
+                <p>type · location · date</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-amber tall">
+                <span class="tag">Filter</span>
+                <h4>Category / Location Filter</h4>
+              </div>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="40" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="200" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+            </svg>
+          </div>
+
+          <div class="node c-teal wide">
+            <span class="tag">04-clip · baseline + fine-tune</span>
+            <h4>Feature Extraction &amp; Embedding</h4>
+            <p>Baseline CLIP &rarr; frozen CLIP &rarr; partial fine-tuning (contrastive pairs)</p>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="40" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="200" y2="37"/>
+              <polygon class="tip" points="35,36 45,36 40,43"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+              <polygon class="tip" points="195,36 205,36 200,43"/>
+            </svg>
+          </div>
+
+          <div class="cols-3">
+            <div class="col">
+              <span class="branch-label">Candidate generation</span>
+              <div class="node c-violet focus">
+                <span class="tag">Vector Store</span>
+                <h4>CLIP FAISS</h4>
+                <p>Top-K candidates</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">Candidate generation</span>
+              <div class="node c-pink focus">
+                <span class="tag">Vector Store</span>
+                <h4>Face FAISS</h4>
+                <p>Threshold-optimized</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">Candidate generation</span>
+              <div class="node c-green focus">
+                <span class="tag">Store</span>
+                <h4>Metadata Search</h4>
+                <p>OCR + category + location + time</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="40" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="200" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+            </svg>
+          </div>
+
+          <div class="node c-indigo wide">
+            <span class="tag">06-ranking · feature_builder.py</span>
+            <h4>Candidate Retrieval → Feature Builder</h4>
+            <p>clip · face · ocr · object · category · location · time scores</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-lime wide focus">
+            <span class="tag">06-ranking · train_ranker.py</span>
+            <h4>Re-ranking Model</h4>
+            <p>Rule-based weights &rarr; Logistic Regression / Random Forest / XGBoost &rarr; match probability</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="row" style="gap:18px;">
+            <div class="node c-red focus">
+              <span class="tag">Output</span>
+              <h4>Top 5 Matches</h4>
+              <p>Confidence + evidence</p>
+            </div>
+            <div class="node c-cyan tall">
+              <span class="tag">07-evaluation</span>
+              <h4>Evaluation Loop</h4>
+              <p>Baseline vs improved · Top-1/5/10 · latency · graphs</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="item"><span class="swatch" style="color:var(--lime); background:var(--lime)"></span>Fine-tuned model / ranker</span>
+        <span class="item"><span class="swatch" style="color:var(--teal); background:var(--teal)"></span>Embedding / feature extraction</span>
+        <span class="item"><span class="swatch" style="color:var(--violet); background:var(--violet)"></span>Candidate stores</span>
+        <span class="item"><span class="swatch" style="color:var(--red); background:var(--red)"></span>Ranked output</span>
+        <span class="item"><span class="swatch" style="color:var(--cyan); background:var(--cyan)"></span>Evaluation loop</span>
+      </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- WEEK 6                                             -->
+    <!-- ================================================== -->
+    <section id="week6" class="week s-w6">
+      <header class="week-header">
+        <h2>Week 06 — Production AI Service</h2>
+        <p>FastAPI + PostgreSQL/PostGIS + FAISS + model serving + Docker + async processing — from AI experiment to a real backend service.</p>
+      </header>
+
+      <div class="diagram">
+        <div class="flow" style="display:flex; flex-direction:column; align-items:center;">
+
+          <div class="row" style="gap:18px;">
+            <div class="node c-indigo">
+              <span class="tag">Client</span>
+              <h4>Flutter</h4>
+              <p>Mobile App · camera · upload · maps</p>
+            </div>
+            <div class="node c-cyan">
+              <span class="tag">Client</span>
+              <h4>React</h4>
+              <p>Admin / NGO / Police portal</p>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-2">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="60" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="180" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+            </svg>
+          </div>
+
+          <div class="node c-slate wide">
+            <span class="tag">Main Backend</span>
+            <h4>Node.js / Express</h4>
+            <p>Auth · users · reports · business logic · API gateway</p>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="40" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="200" y2="37"/>
+              <polygon class="tip" points="35,36 45,36 40,43"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+              <polygon class="tip" points="195,36 205,36 200,43"/>
+            </svg>
+          </div>
+
+          <div class="cols-3">
+            <div class="col">
+              <span class="branch-label">Source of truth</span>
+              <div class="node c-purple focus tall">
+                <span class="tag">Database</span>
+                <h4>PostgreSQL + PostGIS</h4>
+                <p>users · cases · locations · matches · jobs</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">Notifications</span>
+              <div class="node c-slate tall">
+                <span class="tag">Firebase</span>
+                <h4>Firebase</h4>
+                <p>push notifications</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">AI inference</span>
+              <div class="node c-azure focus tall">
+                <span class="tag">Python Service</span>
+                <h4>FastAPI AI Service</h4>
+                <p>models loaded once · diagnostics · /health</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="row" style="gap:18px; width:min(90%,920px);">
+            <div class="node c-slate" style="flex:1 1 200px;">
+              <span class="tag">Worker</span>
+              <h4>Image Processing</h4>
+              <p>validate · sanitize · preprocess · async job</p>
+            </div>
+            <div class="node c-amber" style="flex:1 1 200px;">
+              <span class="tag">Async</span>
+              <h4>Job Queue</h4>
+              <p>queued → processing → completed / failed</p>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-4">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="30" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="90" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="150" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="210" y2="37"/>
+              <polygon class="tip" points="25,36 35,36 30,43"/>
+              <polygon class="tip" points="85,36 95,36 90,43"/>
+              <polygon class="tip" points="145,36 155,36 150,43"/>
+              <polygon class="tip" points="205,36 215,36 210,43"/>
+            </svg>
+          </div>
+
+          <div class="cols-4">
+            <div class="col">
+              <div class="node c-orange focus">
+                <span class="tag">Model</span>
+                <h4>YOLO</h4>
+                <p>objects + boxes</p>
+              </div>
+            </div>
+            <div class="col">
+              <div class="node c-green focus">
+                <span class="tag">Model</span>
+                <h4>OCR</h4>
+                <p>detected text</p>
+              </div>
+            </div>
+            <div class="col">
+              <div class="node c-pink focus">
+                <span class="tag">Model</span>
+                <h4>Face</h4>
+                <p>face embeddings</p>
+              </div>
+            </div>
+            <div class="col">
+              <div class="node c-blue focus">
+                <span class="tag">Model</span>
+                <h4>CLIP</h4>
+                <p>visual + text embedding</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-4">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="30" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="90" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="150" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="210" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+            </svg>
+          </div>
+
+          <div class="node c-violet wide">
+            <span class="tag">faiss_service.py · loaded once</span>
+            <h4>Vector Embedding → FAISS</h4>
+            <p>Top 20 candidates · saved in memory at startup</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-purple wide">
+            <span class="tag">PostgreSQL fetch</span>
+            <h4>Metadata Filter → PostGIS Filter</h4>
+            <p>full case info · distance within radius · ranking signals</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-lime wide focus">
+            <span class="tag">matching_service.py</span>
+            <h4>Re-ranking</h4>
+            <p>visual + face + OCR + category + location + time</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-red focus wide">
+            <span class="tag">Output</span>
+            <h4>Top 5 Matches</h4>
+            <p>stored as match records with confidence</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-slate wide">
+            <span class="tag">API</span>
+            <h4>GET /cases/{id}/matches</h4>
+            <p>served back to Node.js clients</p>
+          </div>
+
+          <div class="fan-split fan-w-2">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="60" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="180" y2="37"/>
+              <polygon class="tip" points="55,36 65,36 60,43"/>
+              <polygon class="tip" points="175,36 185,36 180,43"/>
+            </svg>
+          </div>
+
+          <div class="row" style="gap:18px;">
+            <div class="node c-indigo">
+              <span class="tag">Client</span>
+              <h4>Flutter</h4>
+              <p>matches + notifications</p>
+            </div>
+            <div class="node c-cyan">
+              <span class="tag">Client</span>
+              <h4>React Portal</h4>
+              <p>case management · analytics</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="item"><span class="swatch" style="color:var(--azure); background:var(--azure)"></span>Python AI service</span>
+        <span class="item"><span class="swatch" style="color:var(--purple); background:var(--purple)"></span>PostgreSQL + PostGIS</span>
+        <span class="item"><span class="swatch" style="color:var(--slate); background:var(--slate)"></span>Backend / services</span>
+        <span class="item"><span class="swatch" style="color:var(--violet); background:var(--violet)"></span>FAISS vector retrieval</span>
+        <span class="item"><span class="swatch" style="color:var(--lime); background:var(--lime)"></span>Re-ranking</span>
+        <span class="item"><span class="swatch" style="color:var(--red); background:var(--red)"></span>Ranked output</span>
+      </div>
+    </section>
+
+    <!-- ================================================== -->
+    <!-- WEEK 7                                             -->
+    <!-- ================================================== -->
+    <section id="week7" class="week s-w7">
+      <header class="week-header">
+        <h2>Week 07 — Full Integration · Event-Driven Matching · Notifications</h2>
+        <p>One complete application: a case submission event automatically triggers AI processing, matching, and Firebase notifications — no manual scripts.</p>
+      </header>
+
+      <div class="diagram">
+        <div class="flow" style="display:flex; flex-direction:column; align-items:center;">
+
+          <div class="row" style="gap:18px;">
+            <div class="node c-indigo">
+              <span class="tag">Client</span>
+              <h4>Flutter</h4>
+              <p>Mobile · camera · upload</p>
+            </div>
+            <div class="node c-cyan">
+              <span class="tag">Client</span>
+              <h4>React Portal</h4>
+              <p>Admin / NGO / Police web</p>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-2">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="60" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="180" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+            </svg>
+          </div>
+
+          <div class="node c-slate wide">
+            <span class="tag">API Gateway</span>
+            <h4>Node.js / Express</h4>
+            <p>auth · users · validation · file storage · publishes events</p>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="40" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="200" y2="37"/>
+              <polygon class="tip" points="35,36 45,36 40,43"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+              <polygon class="tip" points="195,36 205,36 200,43"/>
+            </svg>
+          </div>
+
+          <div class="cols-3">
+            <div class="col">
+              <span class="branch-label">Source of truth</span>
+              <div class="node c-purple focus tall">
+                <span class="tag">Database</span>
+                <h4>PostgreSQL + PostGIS</h4>
+                <p>cases · matches · notifications · jobs</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">Events</span>
+              <div class="node c-coral focus tall">
+                <span class="tag">Broker</span>
+                <h4>RabbitMQ</h4>
+                <p>CASE_CREATED · idempotent event_id</p>
+              </div>
+              <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+              <div class="node c-azure">
+                <span class="tag">Consumer</span>
+                <h4>AI Worker</h4>
+                <p>Python · reads event · starts pipeline</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">Push</span>
+              <div class="node c-slate tall">
+                <span class="tag">Firebase</span>
+                <h4>Firebase FCM</h4>
+                <p>new match · status changed</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="40" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="200" y2="37"/>
+              <polygon class="tip" points="35,36 45,36 40,43"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+              <polygon class="tip" points="195,36 205,36 200,43"/>
+            </svg>
+          </div>
+
+          <div class="cols-3">
+            <div class="col">
+              <span class="branch-label">03-matching</span>
+              <div class="node c-orange focus">
+                <span class="tag">Model</span>
+                <h4>YOLO</h4>
+                <p>objects + boxes</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">03-matching</span>
+              <div class="node c-green focus">
+                <span class="tag">Model</span>
+                <h4>OCR</h4>
+                <p>detected text</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">03-matching</span>
+              <div class="node c-pink focus">
+                <span class="tag">Model</span>
+                <h4>Face</h4>
+                <p>face embeddings</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="40" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="200" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+            </svg>
+          </div>
+
+          <div class="node c-blue wide">
+            <span class="tag">candidate-service.py</span>
+            <h4>CLIP → FAISS · Top 20 Candidates</h4>
+            <p>features generated · vector search · candidate case ids</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-purple wide">
+            <span class="tag">match-service.py</span>
+            <h4>Metadata + PostGIS Filter</h4>
+            <p>matching matrix · category · status · location · date</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-lime wide">
+            <span class="tag">Re-ranking</span>
+            <h4>Re-ranking Engine</h4>
+            <p>visual + face + OCR + object + location + time → final score</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-red focus wide">
+            <span class="tag">Event</span>
+            <h4>Match Created · MATCH_CREATED</h4>
+            <p>status POSSIBLE · never auto-confirmed</p>
+          </div>
+
+          <div class="arr"><svg viewBox="0 0 16 30"><line class="st" x1="8" y1="2" x2="8" y2="24"/><polygon class="tip" points="2,24 14,24 8,30"/></svg></div>
+
+          <div class="node c-green wide">
+            <span class="tag">04-notifications</span>
+            <h4>Notification Service → Firebase FCM</h4>
+            <p>NEW_MATCH · stored in-application history</p>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="40" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="120" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="200" y2="37"/>
+              <polygon class="tip" points="35,36 45,36 40,43"/>
+              <polygon class="tip" points="115,36 125,36 120,43"/>
+              <polygon class="tip" points="195,36 205,36 200,43"/>
+            </svg>
+          </div>
+
+          <div class="cols-3">
+            <div class="col">
+              <span class="branch-label">User</span>
+              <div class="node c-indigo tall">
+                <span class="tag">Flutter</span>
+                <h4>Requestor</h4>
+                <p>receives push notification</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">User</span>
+              <div class="node c-indigo focus tall">
+                <span class="tag">Flutter</span>
+                <h4>Potential Match</h4>
+                <p>evidence breakdown · distance</p>
+              </div>
+            </div>
+            <div class="col">
+              <span class="branch-label">Reviewer</span>
+              <div class="node c-cyan tall">
+                <span class="tag">React / Admin</span>
+                <h4>Authorized Reviewer</h4>
+                <p>confirm or reject the match</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fan-split fan-w-3">
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none">
+              <line class="st" x1="120" y1="4" x2="120" y2="20"/>
+              <line class="st" x1="120" y1="20" x2="40" y2="37"/>
+              <line class="st" x1="120" y1="20" x2="200" y2="37"/>
+              <polygon class="tip" points="35,36 45,36 40,43"/>
+              <polygon class="tip" points="175,36 185,36 180,43"/>
+            </svg>
+          </div>
+
+          <div class="row" style="gap:18px;">
+            <div class="node c-green">
+              <span class="tag">Decision</span>
+              <h4>Confirm · MATCH_CONFIRMED</h4>
+              <p>case verified / closed</p>
+            </div>
+            <div class="node c-red">
+              <span class="tag">Decision</span>
+              <h4>Reject · MATCH_REJECTED</h4>
+              <p>match expired / feedback</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="item"><span class="swatch" style="color:var(--coral); background:var(--coral)"></span>Event bus / RabbitMQ</span>
+        <span class="item"><span class="swatch" style="color:var(--purple); background:var(--purple)"></span>PostgreSQL + PostGIS</span>
+        <span class="item"><span class="swatch" style="color:var(--azure); background:var(--azure)"></span>AI worker processes</span>
+        <span class="item"><span class="swatch" style="color:var(--violet); background:var(--violet)"></span>FAISS retrieval</span>
+        <span class="item"><span class="swatch" style="color:var(--green); background:var(--green)"></span>Notifications / confirm</span>
+        <span class="item"><span class="swatch" style="color:var(--red); background:var(--red)"></span>Match decision</span>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <span class="brand-ft">Lostify AI</span>
+    FYP learning roadmap · Week 1 → Week 7
+  </footer>
+
+</body>
+</html>
