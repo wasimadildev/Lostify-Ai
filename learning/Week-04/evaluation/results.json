@@ -1,0 +1,11 @@
+{
+  "summary": {
+    "total": 0,
+    "top1_accuracy": 0.0,
+    "top5_accuracy": 0.0,
+    "mrr": 0.0,
+    "average_latency_ms": 0.0
+  },
+  "per_query": []
+}
+

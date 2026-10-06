@@ -1,0 +1,28 @@
+# Lostify AI — Week 05 YOLO fine-tuning dataset
+#
+# Referenced by train.py (--export) and validate.py. `path` is resolved relative
+# to the Week 05 root, and the images/labels trees are generated, not committed:
+#
+#   yolo_dataset/
+#   ├── images/{train,val,test}/*.jpg
+#   ├── labels/{train,val,test}/*.txt
+#   └── dataset.yaml
+#
+# Labels come from 01-dataset/annotations.json when real boxes exist, and are
+# otherwise pseudo-labelled by the pretrained detector (recorded in the export
+# report as label_source: pseudo). Read the 03-yolo README before trusting a
+# fine-tuned checkpoint built on pseudo-labels.
+
+path: ../yolo_dataset
+
+train: images/train
+val: images/val
+test: images/test
+
+# The four Lostify classes the README calls out as insufficiently separated by
+# a COCO-pretrained detector.
+names:
+  0: phone
+  1: wallet
+  2: bag
+  3: laptop

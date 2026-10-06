@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lostify AI — Architecture Diagram</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  :root {
+    --ar-fc:  #7c3aed;   /* frontend */
+    --ar-fs:  #ede9fe;
+    --ar-ap:  #2563eb;   /* api */
+    --ar-as:  #dbeafe;
+    --ar-ml:  #0d9488;   /* model */
+    --ar-ms:  #ccfbf1;
+    --ar-id:  #d97706;   /* index / faiss */
+    --ar-is:  #fef3c7;
+    --ar-bz:  #475569;   /* business logic */
+    --ar-bs:  #e8eef7;
+    --ar-db:  #dc2626;   /* database / files */
+    --ar-ds:  #fee2e2;
+    --stem:   #b6c2d6;
+  }
+
+  /* ---------- page ---------- */
+  .diagram-page { max-width: 1040px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .diagram-hero { text-align: center; margin: 4px 0 26px; }
+  .diagram-hero h1 { font-size: 30px; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .diagram-hero p  { color: var(--ink-soft); margin: 0; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    justify-content: center; margin: 0 0 36px;
+  }
+  .legend .lg {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 999px; padding: 5px 14px; box-shadow: var(--shadow);
+  }
+  .legend .swatch { width: 12px; height: 12px; border-radius: 4px; }
+
+  /* ---------- lanes ---------- */
+  .lanes-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 24px; margin-bottom: 36px; align-items: start;
+  }
+  .lane {
+    border: 1px dashed var(--line); border-radius: 16px;
+    background: rgba(255, 255, 255, 0.55);
+    padding: 26px 18px 24px;
+  }
+  .lane.full { grid-column: 1 / -1; }
+  .lane-label {
+    text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-mute);
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; padding: 4px 12px; width: fit-content;
+    margin: -40px auto 20px; box-shadow: var(--shadow);
+  }
+  .lane-note {
+    text-align: center; font-size: 12px; color: var(--ink-mute);
+    margin: 12px auto 0; max-width: 92%;
+  }
+
+  /* ---------- vertical flow ---------- */
+  .vflow {
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .box {
+    width: min(100%, 420px);
+    border-radius: 12px; padding: 12px 18px;
+    border: 1.5px solid var(--line); background: var(--surface);
+    box-shadow: var(--shadow); text-align: center;
+    box-sizing: border-box;
+  }
+  .box .b-line1 { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+  .box .b-line2 { font-size: 12px; color: var(--ink-mute); margin-top: 3px; line-height: 1.45; }
+  .box .b-chips { margin-top: 8px; }
+  .box .b-chip {
+    display: inline-block; font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+    border-radius: 999px; padding: 2px 9px; letter-spacing: 0.02em; margin: 2px 2px 0;
+  }
+
+  .box.front { border-color: var(--ar-fc); background: var(--ar-fs); }
+  .box.front .b-chip { background: #fff; color: var(--ar-fc); }
+  .box.api   { border-color: var(--ar-ap); background: var(--ar-as); }
+  .box.api   .b-chip { background: #fff; color: var(--ar-ap); }
+  .box.model { border-color: var(--ar-ml); background: var(--ar-ms); }
+  .box.model .b-chip { background: #fff; color: var(--ar-ml); }
+  .box.search{ border-color: var(--ar-id); background: var(--ar-is); }
+  .box.search .b-chip { background: #fff; color: var(--ar-id); }
+  .box.biz   { border-color: var(--ar-bz); background: var(--ar-bs); }
+  .box.biz   .b-chip { background: #fff; color: var(--ar-bz); }
+  .box.store { border-color: var(--ar-db); background: var(--ar-ds); }
+  .box.store .b-chip { background: #fff; color: var(--ar-db); }
+
+  /* arrow between steps */
+  .arrow {
+    display: flex; flex-direction: column; align-items: center;
+    margin: 10px 0 14px;
+  }
+  .arrow .alabel {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-mute);
+    text-align: center; max-width: 300px; margin-bottom: 6px; line-height: 1.4;
+  }
+  .arrow .stem { width: 2px; height: 20px; background: var(--stem); }
+  .arrow .tip  {
+    width: 0; height: 0; margin-top: -1px;
+    border-left: 7px solid transparent; border-right: 7px solid transparent;
+    border-top: 9px solid var(--stem);
+  }
+
+  /* ---------- two-column pair (CLIP vision/text) ---------- */
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: min(100%, 420px); }
+  .pair .box { width: 100%; }
+  .pair-label {
+    text-align: center; font-size: 12px; color: var(--ink-mute);
+    margin: 10px 0 2px; max-width: 440px; line-height: 1.5;
+  }
+
+  /* ---------- horizontal chain (offline) ---------- */
+  .hchain {
+    display: flex; flex-wrap: wrap; align-items: center;
+    justify-content: center; gap: 8px; row-gap: 18px;
+  }
+  .hchain .box { width: auto; min-width: 150px; }
+  .harrow { color: var(--stem); font-size: 20px; font-weight: 700; padding: 0 2px; }
+
+  /* ---------- divider between lanes ---------- */
+  .lane-divider {
+    grid-column: 1 / -1; text-align: center;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ink-mute);
+    margin: 6px 0 -10px;
+  }
+
+  @media (max-width: 720px) {
+    .lanes-grid { grid-template-columns: 1fr; }
+    .pair { grid-template-columns: 1fr; }
+    .hchain .harrow { font-size: 16px; }
+    .box .b-line1 { font-size: 13.5px; }
+  }
+</style>
+</head>
+<body>
+<div class="diagram-page">
+
+  <header class="diagram-hero">
+    <h1>Lostify AI — System Architecture</h1>
+    <p>Two online flows — a user can <b>submit a new report</b> or <b>search</b> for matches — plus one offline lane that builds the index from the dataset.</p>
+  </header>
+
+  <nav class="legend">
+    <span class="lg"><span class="swatch" style="background:var(--ar-fc)"></span>Frontend</span>
+    <span class="lg"><span class="swatch" style="background:var(--ar-ap)"></span>API layer</span>
+    <span class="lg"><span class="swatch" style="background:var(--ar-ml)"></span>ML / CLIP</span>
+    <span class="lg"><span class="swatch" style="background:var(--ar-id)"></span>Vector index / FAISS</span>
+    <span class="lg"><span class="swatch" style="background:var(--ar-bz)"></span>Business logic</span>
+    <span class="lg"><span class="swatch" style="background:var(--ar-db)"></span>Storage / data</span>
+  </nav>
+
+  <!-- ==================== ONLINE LANES ==================== -->
+  <div class="lanes-grid">
+
+    <!-- ---- SEARCH (READ) ---- -->
+    <section class="lane">
+      <div class="lane-label">Online · Search a report</div>
+
+      <div class="vflow">
+
+        <div class="box front">
+          <div class="b-line1">React · Search page</div>
+          <div class="b-line2">drop a photo and/or type a description + city</div>
+          <div class="b-chips"><span class="b-chip">/</span></div>
+        </div>
+
+        <div class="arrow">
+          <div class="alabel">POST /search · multipart/form-data</div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box api">
+          <div class="b-line1">FastAPI · app.py</div>
+          <div class="b-line2">validates fields · <code>query_type ∈ lost_pet | lost_item | lost_person</code></div>
+          <div class="b-chips"><span class="b-chip">UVICORN :8000</span></div>
+        </div>
+
+        <div class="arrow">
+          <div class="alabel">high-level search request</div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box model">
+          <div class="b-line1">CLIP engine · engine.py</div>
+          <div class="b-line2">embeds image + text into the shared 512-D space</div>
+          <div class="b-chips"><span class="b-chip">multimodal_service.py</span></div>
+        </div>
+
+        <div class="pair" style="margin-top:12px;">
+          <div class="box model">
+            <div class="b-line1">CLIP Vision</div>
+            <div class="b-line2"><code>image_embedding_from_bytes</code></div>
+          </div>
+          <div class="box model">
+            <div class="b-line1">CLIP Text</div>
+            <div class="b-line2"><code>text_embedding</code></div>
+          </div>
+        </div>
+        <div class="pair-label">both outputs are unit-normalized vectors in the same 512-D space</div>
+
+        <div class="arrow">
+          <div class="alabel">0.7·image + 0.3·text, renormalized → one fused vector</div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box search">
+          <div class="b-line1">FAISS IndexFlatIP</div>
+          <div class="b-line2">one search → top 20 candidates, cosine = inner product</div>
+          <div class="b-chips"><span class="b-chip">store.py · index.search</span></div>
+        </div>
+
+        <div class="arrow">
+          <div class="alabel">wide net first — recall over precision</div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box biz">
+          <div class="b-line1">Metadata filtering</div>
+          <div class="b-line2">case_type · category · status — a "lost white cat" never returns a dog</div>
+          <div class="b-chips"><span class="b-chip">filtering_service.py</span></div>
+        </div>
+
+        <div class="arrow">
+          <div class="alabel">survivors scored: 0.70·visual + 0.20·text + 0.10·location</div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box biz">
+          <div class="b-line1">Ranking engine</div>
+          <div class="b-line2">sorted by final_score · trimmed to top_k (5)</div>
+          <div class="b-chips"><span class="b-chip">ranking_service.py · haversine</span></div>
+        </div>
+
+        <div class="arrow">
+          <div class="alabel">200 OK</div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box front">
+          <div class="b-line1">React · Result cards</div>
+          <div class="b-line2">photo · title · type badge · visual / text / location / final score bars</div>
+          <div class="b-chips"><span class="b-chip">explainable scores</span></div>
+        </div>
+
+        <p class="lane-note">Side channel: <code>GET /reports</code> → <code>lostify.db</code> → the All Reports gallery (image thumbnails via <code>/static/…</code>).</p>
+      </div>
+    </section>
+
+    <!-- ---- NEW REPORT (WRITE) ---- -->
+    <section class="lane">
+      <div class="lane-label">Online · Submit a new report</div>
+
+      <div class="vflow">
+
+        <div class="box front">
+          <div class="b-line1">React · New report page</div>
+          <div class="b-line2">photo + title + description + type + city + date</div>
+          <div class="b-chips"><span class="b-chip">/new-report</span></div>
+        </div>
+
+        <div class="arrow">
+          <div class="alabel">POST /reports · multipart/form-data</div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box api">
+          <div class="b-line1">FastAPI · app.py</div>
+          <div class="b-line2"><code>db.next_case_id()</code> → e.g. <code>PERS-11</code> / <code>PETS-15</code> / <code>ITEMS-21</code></div>
+          <div class="b-chips"><span class="b-chip">UVICORN :8000</span></div>
+        </div>
+
+        <div class="arrow">
+          <div class="alabel">save upload as <code>data/&lt;type&gt;/&lt;id&gt;.jpg</code></div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box store">
+          <div class="b-line1">Image stored to disk</div>
+          <div class="b-line2">served later at <code>/static/&lt;type&gt;/&lt;id&gt;.jpg</code></div>
+          <div class="b-chips"><span class="b-chip">data/…</span></div>
+        </div>
+
+        <div class="arrow">
+          <div class="alabel">CLIP-embed the new photo → 512-D vector</div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box model">
+          <div class="b-line1">CLIP Vision</div>
+          <div class="b-line2"><code>engine.add_report()</code> embeds the uploaded image</div>
+        </div>
+
+        <div class="arrow">
+          <div class="alabel">append to the live index</div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box search">
+          <div class="b-line1">CaseStore · add_case()</div>
+          <div class="b-line2"><code>index.add()</code> 44 → 45 · persists index / names / metadata — searchable immediately</div>
+          <div class="b-chips"><span class="b-chip">store.py</span></div>
+        </div>
+
+        <div class="pair" style="margin-top:12px;">
+          <div class="box store">
+            <div class="b-line1">FAISS index</div>
+            <div class="b-line2"><code>index.index</code> + <code>case_names.txt</code></div>
+          </div>
+          <div class="box store">
+            <div class="b-line1">metadata.json</div>
+            <div class="b-line2">single record appended</div>
+          </div>
+        </div>
+        <div class="pair-label">all three index artifacts stay in sync</div>
+
+        <div class="arrow">
+          <div class="alabel">INSERT INTO reports (source = 'user')</div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box store">
+          <div class="b-line1">SQLite · lostify.db</div>
+          <div class="b-line2"><code>reports</code> table — case, coordinates, date, <code>source</code> column</div>
+          <div class="b-chips"><span class="b-chip">db.py</span></div>
+        </div>
+
+        <div class="arrow">
+          <div class="alabel">201 Created</div>
+          <div class="stem"></div><div class="tip"></div>
+        </div>
+
+        <div class="box front">
+          <div class="b-line1">React · Success panel</div>
+          <div class="b-line2">saved record + "New report" badge · links to search or the gallery</div>
+        </div>
+
+        <p class="lane-note">The report is <b>searchable immediately</b> via the adjacent Search flow — no restart, no rebuild.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ==================== OFFLINE LANE ==================== -->
+  <section class="lane full">
+    <div class="lane-label">Offline · Built once, at index build time</div>
+
+    <div class="hchain">
+      <div class="box store">
+        <div class="b-line1">catalog.json</div>
+        <div class="b-line2">44 cases · source of truth</div>
+        <div class="b-chips"><span class="b-chip">catalog</span></div>
+      </div>
+      <span class="harrow">→</span>
+      <div class="box store">
+        <div class="b-line1">metadata.json</div>
+        <div class="b-line2">type · category · location · lat/lon</div>
+        <div class="b-chips"><span class="b-chip">create_metadata.py</span></div>
+      </div>
+      <span class="harrow">→</span>
+      <div class="box model">
+        <div class="b-line1">CLIP · ViT-B/32</div>
+        <div class="b-line2">one embedding per image</div>
+        <div class="b-chips"><span class="b-chip">generate_embeddings.py</span></div>
+      </div>
+      <span class="harrow">→</span>
+      <div class="box store">
+        <div class="b-line1">embeddings/*.npy</div>
+        <div class="b-line2">44 × 512-D vectors</div>
+        <div class="b-chips"><span class="b-chip">.npy</span></div>
+      </div>
+      <span class="harrow">→</span>
+      <div class="box search">
+        <div class="b-line1">FAISS IndexFlatIP</div>
+        <div class="b-line2">44 vectors · persisted</div>
+        <div class="b-chips"><span class="b-chip">build_faiss_index.py</span></div>
+      </div>
+    </div>
+
+    <p class="lane-note">
+      Images live in <code>data/{pets,persons,items}/</code> and feed <code>generate_embeddings.py</code>;
+      the product is <code>embeddings/index.index</code> + <code>embeddings/case_names.txt</code>, loaded once at API
+      startup. <code>db.py</code> seeds the same 44 records into SQLite on first boot.
+    </p>
+  </section>
+
+  <footer class="diagram-footer" style="text-align:center; color:var(--ink-mute); font-size:13px; margin-top:24px;">
+    Lostify AI · Week 03 · CLIP × FAISS × FastAPI × SQLite · full detail in <a href="index.html">the documentation</a>
+  </footer>
+</div>
+</body>
+</html>

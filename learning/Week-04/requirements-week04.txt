@@ -1,0 +1,9 @@
+# Week 03 foundation
+-r ../Week-03/requirements.txt
+
+# Specialized models
+ultralytics
+paddleocr
+paddlepaddle
+opencv-python
+face-recognition

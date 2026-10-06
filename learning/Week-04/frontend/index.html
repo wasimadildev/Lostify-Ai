@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta
+      name="description"
+      content="Lostify AI Week 04 uses YOLO, OCR, face recognition, CLIP, and FAISS to find matching lost-and-found cases."
+    />
+    <meta name="application-name" content="Lostify AI - Week 04" />
+    <meta property="og:title" content="Lostify AI | Specialized AI matching" />
+    <meta
+      property="og:description"
+      content="Upload a photo or describe a lost item, pet, or person. Lostify AI analyzes the image and returns explainable matches."
+    />
+    <meta property="og:type" content="website" />
+    <title>Lostify AI | Specialized AI matching</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <main>
+        <h1>Lostify AI - Week 04</h1>
+        <p>
+          Lostify AI combines YOLO object detection, OCR, face detection,
+          face embeddings, CLIP, and FAISS to match lost-and-found reports.
+        </p>
+        <h2>How it works</h2>
+        <ol>
+          <li>Upload a report image and/or write a description.</li>
+          <li>Extract objects, readable text, faces, and visual embeddings.</li>
+          <li>Retrieve candidates from the Week 03 FAISS dataset.</li>
+          <li>Filter and rank candidates with explainable scores.</li>
+        </ol>
+        <p>Enable JavaScript to use the interactive application.</p>
+      </main>
+    </noscript>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

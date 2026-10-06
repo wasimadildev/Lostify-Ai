@@ -1,0 +1,8 @@
+{
+  "description": "Small, model-independent smoke dataset for the Week 04 pipeline.",
+  "queries": [
+    {"query_id": "ocr-01", "text": "STMU WASEEM", "expected": ["ITEMS-12"]},
+    {"query_id": "text-01", "text": "black backpack", "expected": ["ITEMS-12"]}
+  ]
+}
+

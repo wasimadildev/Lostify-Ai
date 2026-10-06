@@ -1,0 +1,1300 @@
+{
+  "summary": {
+    "dataset": "/Users/wasimadil/developer/Lostify-Ai/learning/Week-03/evaluation/test_dataset.json",
+    "overall": {
+      "label": "overall",
+      "total": 47,
+      "top1_accuracy": 0.9362,
+      "top5_accuracy": 0.9787,
+      "top10_accuracy": 1.0,
+      "mrr": 0.9605
+    },
+    "by_mode": {
+      "image": {
+        "label": "image",
+        "total": 12,
+        "top1_accuracy": 1.0,
+        "top5_accuracy": 1.0,
+        "top10_accuracy": 1.0,
+        "mrr": 1.0
+      },
+      "text": {
+        "label": "text",
+        "total": 29,
+        "top1_accuracy": 0.8966,
+        "top5_accuracy": 0.9655,
+        "top10_accuracy": 1.0,
+        "mrr": 0.936
+      },
+      "combined": {
+        "label": "combined",
+        "total": 6,
+        "top1_accuracy": 1.0,
+        "top5_accuracy": 1.0,
+        "top10_accuracy": 1.0,
+        "mrr": 1.0
+      }
+    },
+    "by_case_type": {
+      "lost_pet": {
+        "label": "lost_pet",
+        "total": 19,
+        "top1_accuracy": 1.0,
+        "top5_accuracy": 1.0,
+        "top10_accuracy": 1.0,
+        "mrr": 1.0
+      },
+      "lost_person": {
+        "label": "lost_person",
+        "total": 10,
+        "top1_accuracy": 0.9,
+        "top5_accuracy": 0.9,
+        "top10_accuracy": 1.0,
+        "mrr": 0.9143
+      },
+      "lost_item": {
+        "label": "lost_item",
+        "total": 18,
+        "top1_accuracy": 0.8889,
+        "top5_accuracy": 1.0,
+        "top10_accuracy": 1.0,
+        "mrr": 0.9444
+      }
+    },
+    "latency_ms": {
+      "faiss_search_avg": 0.004,
+      "total_search_avg": 81.06,
+      "total_search_p50": 15.61,
+      "total_search_p95": 141.32
+    }
+  },
+  "per_query": [
+    {
+      "query_id": "q01",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "white persian cat with a blue collar lost in the park",
+      "expected": [
+        "PETS-01"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-01",
+        "PETS-04",
+        "PETS-06",
+        "PETS-07",
+        "PETS-03",
+        "PETS-09",
+        "PETS-05",
+        "PETS-02",
+        "PETS-11"
+      ],
+      "latency_ms": 1022.57
+    },
+    {
+      "query_id": "q02",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "ginger orange tabby cat missing",
+      "expected": [
+        "PETS-02"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-02",
+        "PETS-06",
+        "PETS-04",
+        "PETS-05",
+        "PETS-01",
+        "PETS-08",
+        "PETS-07",
+        "PETS-03",
+        "PETS-09"
+      ],
+      "latency_ms": 15.47
+    },
+    {
+      "query_id": "q03",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "small black cat with yellow eyes",
+      "expected": [
+        "PETS-03"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-03",
+        "PETS-05",
+        "PETS-06",
+        "PETS-04",
+        "PETS-01",
+        "PETS-07",
+        "PETS-02",
+        "PETS-12",
+        "PETS-14",
+        "PETS-11"
+      ],
+      "latency_ms": 16.47
+    },
+    {
+      "query_id": "q04",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "grey striped tabby cat",
+      "expected": [
+        "PETS-04"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-04",
+        "PETS-07",
+        "PETS-06",
+        "PETS-02",
+        "PETS-03",
+        "PETS-05",
+        "PETS-01",
+        "PETS-09",
+        "PETS-13",
+        "PETS-11"
+      ],
+      "latency_ms": 14.73
+    },
+    {
+      "query_id": "q05",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "siamese cat with blue eyes",
+      "expected": [
+        "PETS-05"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-05",
+        "PETS-03",
+        "PETS-01",
+        "PETS-06",
+        "PETS-04",
+        "PETS-11",
+        "PETS-07",
+        "PETS-02",
+        "PETS-13",
+        "PETS-12"
+      ],
+      "latency_ms": 14.97
+    },
+    {
+      "query_id": "q06",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "calico cat with orange and black patches",
+      "expected": [
+        "PETS-06"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-06",
+        "PETS-07",
+        "PETS-05",
+        "PETS-02",
+        "PETS-04",
+        "PETS-03",
+        "PETS-14",
+        "PETS-01",
+        "PETS-10",
+        "PETS-09"
+      ],
+      "latency_ms": 16.42
+    },
+    {
+      "query_id": "q07",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "golden retriever dog with light golden coat",
+      "expected": [
+        "PETS-08"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-08",
+        "PETS-12",
+        "PETS-02",
+        "PETS-13",
+        "PETS-09",
+        "PETS-14",
+        "PETS-10",
+        "PETS-11",
+        "PETS-01",
+        "PETS-06"
+      ],
+      "latency_ms": 15.21
+    },
+    {
+      "query_id": "q08",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "siberian husky dog black and white coat",
+      "expected": [
+        "PETS-09"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-09",
+        "PETS-13",
+        "PETS-03",
+        "PETS-12",
+        "PETS-10",
+        "PETS-04",
+        "PETS-07",
+        "PETS-06",
+        "PETS-05",
+        "PETS-11"
+      ],
+      "latency_ms": 15.07
+    },
+    {
+      "query_id": "q09",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "tri-colour beagle dog",
+      "expected": [
+        "PETS-10"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-10",
+        "PETS-14",
+        "PETS-08",
+        "PETS-13",
+        "PETS-09",
+        "PETS-06",
+        "PETS-11",
+        "PETS-12",
+        "PETS-07"
+      ],
+      "latency_ms": 15.28
+    },
+    {
+      "query_id": "q10",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "small tan pug dog",
+      "expected": [
+        "PETS-11"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-11",
+        "PETS-08",
+        "PETS-13",
+        "PETS-14",
+        "PETS-12",
+        "PETS-05",
+        "PETS-01",
+        "PETS-02",
+        "PETS-06"
+      ],
+      "latency_ms": 14.45
+    },
+    {
+      "query_id": "q11",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "german shepherd dog with tan and black coat",
+      "expected": [
+        "PETS-13"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-13",
+        "PETS-12",
+        "PETS-09",
+        "PETS-08",
+        "PETS-05",
+        "PETS-14",
+        "PETS-11",
+        "PETS-03",
+        "PETS-06",
+        "PETS-02"
+      ],
+      "latency_ms": 15.61
+    },
+    {
+      "query_id": "q12",
+      "mode": "text",
+      "case_type": "lost_pet",
+      "text": "dachshund brown dog with short legs",
+      "expected": [
+        "PETS-14"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-14",
+        "PETS-13",
+        "PETS-08",
+        "PETS-12",
+        "PETS-10",
+        "PETS-11",
+        "PETS-05",
+        "PETS-02",
+        "PETS-09",
+        "PETS-03"
+      ],
+      "latency_ms": 15.45
+    },
+    {
+      "query_id": "q13",
+      "mode": "text",
+      "case_type": "lost_person",
+      "text": "elderly man with white beard wearing grey shalwar kameez",
+      "expected": [
+        "PERS-01"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PERS-01",
+        "PERS-09",
+        "PERS-08",
+        "PERS-05",
+        "PERS-02"
+      ],
+      "latency_ms": 15.43
+    },
+    {
+      "query_id": "q14",
+      "mode": "text",
+      "case_type": "lost_person",
+      "text": "young girl in a red dress with ponytail",
+      "expected": [
+        "PERS-04"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PERS-04",
+        "PERS-06",
+        "PERS-10",
+        "PERS-02",
+        "PERS-08",
+        "PERS-01",
+        "PERS-03"
+      ],
+      "latency_ms": 14.97
+    },
+    {
+      "query_id": "q15",
+      "mode": "text",
+      "case_type": "lost_person",
+      "text": "school boy in blue jacket with school bag",
+      "expected": [
+        "PERS-05"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PERS-05",
+        "PERS-08",
+        "PERS-03",
+        "PERS-04",
+        "PERS-07"
+      ],
+      "latency_ms": 15.26
+    },
+    {
+      "query_id": "q16",
+      "mode": "text",
+      "case_type": "lost_person",
+      "text": "woman with long brown curly hair",
+      "expected": [
+        "PERS-06"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PERS-06",
+        "PERS-10",
+        "PERS-08",
+        "PERS-02",
+        "PERS-01",
+        "PERS-04",
+        "PERS-09",
+        "PERS-03"
+      ],
+      "latency_ms": 15.23
+    },
+    {
+      "query_id": "q17",
+      "mode": "text",
+      "case_type": "lost_person",
+      "text": "young toddler in a bright yellow sweater missing",
+      "expected": [
+        "PERS-07"
+      ],
+      "rank": 7,
+      "hit@1": false,
+      "hit@5": false,
+      "hit@10": true,
+      "mrr": 0.14285714285714285,
+      "top_k_ids": [
+        "PERS-05",
+        "PERS-10",
+        "PERS-04",
+        "PERS-06",
+        "PERS-08",
+        "PERS-02",
+        "PERS-07"
+      ],
+      "latency_ms": 14.37
+    },
+    {
+      "query_id": "q18",
+      "mode": "text",
+      "case_type": "lost_person",
+      "text": "middle aged man with glasses in white dress shirt",
+      "expected": [
+        "PERS-08"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PERS-08",
+        "PERS-03",
+        "PERS-01",
+        "PERS-10",
+        "PERS-06",
+        "PERS-04",
+        "PERS-07",
+        "PERS-02"
+      ],
+      "latency_ms": 14.6
+    },
+    {
+      "query_id": "q19",
+      "mode": "text",
+      "case_type": "lost_person",
+      "text": "young woman wearing a light coloured hijab",
+      "expected": [
+        "PERS-09"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PERS-09",
+        "PERS-10",
+        "PERS-06",
+        "PERS-02",
+        "PERS-08",
+        "PERS-04",
+        "PERS-05"
+      ],
+      "latency_ms": 14.57
+    },
+    {
+      "query_id": "q20",
+      "mode": "text",
+      "case_type": "lost_item",
+      "text": "black backpack with two front zip pockets",
+      "expected": [
+        "ITEMS-12"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-12",
+        "ITEMS-04",
+        "ITEMS-02",
+        "ITEMS-01",
+        "ITEMS-13",
+        "ITEMS-03",
+        "ITEMS-20",
+        "ITEMS-09",
+        "ITEMS-08",
+        "ITEMS-14"
+      ],
+      "latency_ms": 15.66
+    },
+    {
+      "query_id": "q21",
+      "mode": "text",
+      "case_type": "lost_item",
+      "text": "silver laptop computer with a sticker on the lid",
+      "expected": [
+        "ITEMS-11"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-11",
+        "ITEMS-10",
+        "ITEMS-02",
+        "ITEMS-17",
+        "ITEMS-12",
+        "ITEMS-01",
+        "ITEMS-05",
+        "ITEMS-08",
+        "ITEMS-20",
+        "ITEMS-04"
+      ],
+      "latency_ms": 16.58
+    },
+    {
+      "query_id": "q22",
+      "mode": "text",
+      "case_type": "lost_item",
+      "text": "brown leather wallet with an id card slot",
+      "expected": [
+        "ITEMS-13"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-13",
+        "ITEMS-02",
+        "ITEMS-04",
+        "ITEMS-10",
+        "ITEMS-05",
+        "ITEMS-12",
+        "ITEMS-11",
+        "ITEMS-08",
+        "ITEMS-09",
+        "ITEMS-15"
+      ],
+      "latency_ms": 15.44
+    },
+    {
+      "query_id": "q23",
+      "mode": "text",
+      "case_type": "lost_item",
+      "text": "red umbrella left at a bus stop",
+      "expected": [
+        "ITEMS-16"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-16",
+        "ITEMS-05",
+        "ITEMS-01",
+        "ITEMS-20",
+        "ITEMS-03",
+        "ITEMS-02",
+        "ITEMS-15",
+        "ITEMS-06",
+        "ITEMS-12",
+        "ITEMS-04"
+      ],
+      "latency_ms": 14.09
+    },
+    {
+      "query_id": "q24",
+      "mode": "text",
+      "case_type": "lost_item",
+      "text": "black over-ear wireless headphones",
+      "expected": [
+        "ITEMS-17"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-17",
+        "ITEMS-20",
+        "ITEMS-10",
+        "ITEMS-02",
+        "ITEMS-04",
+        "ITEMS-12",
+        "ITEMS-13",
+        "ITEMS-08",
+        "ITEMS-05",
+        "ITEMS-03"
+      ],
+      "latency_ms": 13.98
+    },
+    {
+      "query_id": "q25",
+      "mode": "text",
+      "case_type": "lost_item",
+      "text": "silver stainless steel water bottle with blue band",
+      "expected": [
+        "ITEMS-18"
+      ],
+      "rank": 2,
+      "hit@1": false,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 0.5,
+      "top_k_ids": [
+        "ITEMS-20",
+        "ITEMS-18",
+        "ITEMS-13",
+        "ITEMS-05",
+        "ITEMS-10",
+        "ITEMS-04",
+        "ITEMS-11",
+        "ITEMS-17",
+        "ITEMS-02",
+        "ITEMS-06"
+      ],
+      "latency_ms": 14.98
+    },
+    {
+      "query_id": "q26",
+      "mode": "text",
+      "case_type": "lost_item",
+      "text": "black sunglasses with a brown case",
+      "expected": [
+        "ITEMS-19"
+      ],
+      "rank": 2,
+      "hit@1": false,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 0.5,
+      "top_k_ids": [
+        "ITEMS-04",
+        "ITEMS-19",
+        "ITEMS-13",
+        "ITEMS-10",
+        "ITEMS-20",
+        "ITEMS-11",
+        "ITEMS-02",
+        "ITEMS-01",
+        "ITEMS-09",
+        "ITEMS-08"
+      ],
+      "latency_ms": 14.8
+    },
+    {
+      "query_id": "q27",
+      "mode": "text",
+      "case_type": "lost_item",
+      "text": "black dslr camera with a zoom lens",
+      "expected": [
+        "ITEMS-20"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-20",
+        "ITEMS-12",
+        "ITEMS-10",
+        "ITEMS-03",
+        "ITEMS-17",
+        "ITEMS-11",
+        "ITEMS-01",
+        "ITEMS-04"
+      ],
+      "latency_ms": 14.48
+    },
+    {
+      "query_id": "q28",
+      "mode": "text",
+      "case_type": "lost_item",
+      "text": "red and white bicycle with a rear basket",
+      "expected": [
+        "ITEMS-06"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-06",
+        "ITEMS-01",
+        "ITEMS-16",
+        "ITEMS-07",
+        "ITEMS-14",
+        "ITEMS-08",
+        "ITEMS-02",
+        "ITEMS-20",
+        "ITEMS-03",
+        "ITEMS-04"
+      ],
+      "latency_ms": 15.12
+    },
+    {
+      "query_id": "q29",
+      "mode": "text",
+      "case_type": "lost_item",
+      "text": "red hard shell suitcase with grey duffel bag",
+      "expected": [
+        "ITEMS-01"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-01",
+        "ITEMS-12",
+        "ITEMS-04",
+        "ITEMS-02",
+        "ITEMS-08",
+        "ITEMS-09",
+        "ITEMS-16",
+        "ITEMS-03",
+        "ITEMS-10",
+        "ITEMS-13"
+      ],
+      "latency_ms": 15.04
+    },
+    {
+      "query_id": "q30",
+      "mode": "image",
+      "case_type": "lost_pet",
+      "text": null,
+      "expected": [
+        "PETS-01"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-01",
+        "PETS-07",
+        "PETS-03",
+        "PETS-04",
+        "PETS-11",
+        "PETS-05",
+        "PETS-06",
+        "PETS-02",
+        "PETS-08",
+        "PETS-09"
+      ],
+      "latency_ms": 1321.9
+    },
+    {
+      "query_id": "q31",
+      "mode": "image",
+      "case_type": "lost_pet",
+      "text": null,
+      "expected": [
+        "PETS-08"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-08",
+        "PETS-11",
+        "PETS-04",
+        "PETS-12",
+        "PETS-02",
+        "PETS-05",
+        "PETS-09",
+        "PETS-14",
+        "PETS-10",
+        "PETS-06"
+      ],
+      "latency_ms": 31.76
+    },
+    {
+      "query_id": "q32",
+      "mode": "image",
+      "case_type": "lost_pet",
+      "text": null,
+      "expected": [
+        "PETS-09"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-09",
+        "PETS-12",
+        "PETS-14",
+        "PETS-04",
+        "PETS-05",
+        "PETS-11",
+        "PETS-07",
+        "PETS-03",
+        "PETS-13",
+        "PETS-08"
+      ],
+      "latency_ms": 27.37
+    },
+    {
+      "query_id": "q33",
+      "mode": "image",
+      "case_type": "lost_pet",
+      "text": null,
+      "expected": [
+        "PETS-13"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-13",
+        "PETS-12",
+        "PETS-05",
+        "PETS-09",
+        "PETS-11",
+        "PETS-04",
+        "PETS-03",
+        "PETS-14",
+        "PETS-07",
+        "PETS-02"
+      ],
+      "latency_ms": 29.39
+    },
+    {
+      "query_id": "q34",
+      "mode": "image",
+      "case_type": "lost_person",
+      "text": null,
+      "expected": [
+        "PERS-01"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PERS-01",
+        "PERS-10",
+        "PERS-04",
+        "PERS-06",
+        "PERS-02",
+        "PERS-09"
+      ],
+      "latency_ms": 28.83
+    },
+    {
+      "query_id": "q35",
+      "mode": "image",
+      "case_type": "lost_person",
+      "text": null,
+      "expected": [
+        "PERS-05"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PERS-05",
+        "PERS-07",
+        "PERS-04",
+        "PERS-06",
+        "PERS-10"
+      ],
+      "latency_ms": 28.9
+    },
+    {
+      "query_id": "q36",
+      "mode": "image",
+      "case_type": "lost_item",
+      "text": null,
+      "expected": [
+        "ITEMS-01"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-01",
+        "ITEMS-04",
+        "ITEMS-12",
+        "ITEMS-02",
+        "ITEMS-08",
+        "ITEMS-09",
+        "ITEMS-13",
+        "ITEMS-16",
+        "ITEMS-15",
+        "ITEMS-20"
+      ],
+      "latency_ms": 145.89
+    },
+    {
+      "query_id": "q37",
+      "mode": "image",
+      "case_type": "lost_item",
+      "text": null,
+      "expected": [
+        "ITEMS-06"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-06",
+        "ITEMS-16",
+        "ITEMS-01",
+        "ITEMS-20",
+        "ITEMS-02",
+        "ITEMS-04",
+        "ITEMS-17",
+        "ITEMS-08",
+        "ITEMS-18",
+        "ITEMS-15"
+      ],
+      "latency_ms": 104.39
+    },
+    {
+      "query_id": "q38",
+      "mode": "image",
+      "case_type": "lost_item",
+      "text": null,
+      "expected": [
+        "ITEMS-10"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-10",
+        "ITEMS-17",
+        "ITEMS-13",
+        "ITEMS-02",
+        "ITEMS-08",
+        "ITEMS-20",
+        "ITEMS-11",
+        "ITEMS-05",
+        "ITEMS-12",
+        "ITEMS-03"
+      ],
+      "latency_ms": 141.32
+    },
+    {
+      "query_id": "q39",
+      "mode": "image",
+      "case_type": "lost_item",
+      "text": null,
+      "expected": [
+        "ITEMS-12"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-12",
+        "ITEMS-01",
+        "ITEMS-02",
+        "ITEMS-13",
+        "ITEMS-04",
+        "ITEMS-09",
+        "ITEMS-08",
+        "ITEMS-20",
+        "ITEMS-03",
+        "ITEMS-10"
+      ],
+      "latency_ms": 31.96
+    },
+    {
+      "query_id": "q40",
+      "mode": "image",
+      "case_type": "lost_item",
+      "text": null,
+      "expected": [
+        "ITEMS-16"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-16",
+        "ITEMS-15",
+        "ITEMS-17",
+        "ITEMS-18",
+        "ITEMS-02",
+        "ITEMS-04",
+        "ITEMS-20",
+        "ITEMS-01",
+        "ITEMS-03",
+        "ITEMS-06"
+      ],
+      "latency_ms": 37.94
+    },
+    {
+      "query_id": "q41",
+      "mode": "image",
+      "case_type": "lost_item",
+      "text": null,
+      "expected": [
+        "ITEMS-20"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-20",
+        "ITEMS-17",
+        "ITEMS-03",
+        "ITEMS-18",
+        "ITEMS-16",
+        "ITEMS-10",
+        "ITEMS-12",
+        "ITEMS-04",
+        "ITEMS-15",
+        "ITEMS-02"
+      ],
+      "latency_ms": 33.23
+    },
+    {
+      "query_id": "q42",
+      "mode": "combined",
+      "case_type": "lost_pet",
+      "text": "white cat with blue collar",
+      "expected": [
+        "PETS-01"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-01",
+        "PETS-07",
+        "PETS-03",
+        "PETS-04",
+        "PETS-05",
+        "PETS-11",
+        "PETS-06",
+        "PETS-02",
+        "PETS-08",
+        "PETS-09"
+      ],
+      "latency_ms": 57.12
+    },
+    {
+      "query_id": "q43",
+      "mode": "combined",
+      "case_type": "lost_pet",
+      "text": "golden retriever puppy dog",
+      "expected": [
+        "PETS-08"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-08",
+        "PETS-11",
+        "PETS-12",
+        "PETS-04",
+        "PETS-02",
+        "PETS-05",
+        "PETS-09",
+        "PETS-14",
+        "PETS-10",
+        "PETS-01"
+      ],
+      "latency_ms": 52.79
+    },
+    {
+      "query_id": "q44",
+      "mode": "combined",
+      "case_type": "lost_person",
+      "text": "girl in red dress",
+      "expected": [
+        "PERS-04"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PERS-04",
+        "PERS-10",
+        "PERS-02",
+        "PERS-09",
+        "PERS-01",
+        "PERS-06"
+      ],
+      "latency_ms": 51.0
+    },
+    {
+      "query_id": "q45",
+      "mode": "combined",
+      "case_type": "lost_item",
+      "text": "red umbrella missing",
+      "expected": [
+        "ITEMS-16"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-16",
+        "ITEMS-15",
+        "ITEMS-17",
+        "ITEMS-18",
+        "ITEMS-02",
+        "ITEMS-04",
+        "ITEMS-20",
+        "ITEMS-01",
+        "ITEMS-03",
+        "ITEMS-06"
+      ],
+      "latency_ms": 52.43
+    },
+    {
+      "query_id": "q46",
+      "mode": "combined",
+      "case_type": "lost_item",
+      "text": "smartphone lost",
+      "expected": [
+        "ITEMS-10"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "ITEMS-10",
+        "ITEMS-17",
+        "ITEMS-13",
+        "ITEMS-02",
+        "ITEMS-11",
+        "ITEMS-05",
+        "ITEMS-20",
+        "ITEMS-08",
+        "ITEMS-12",
+        "ITEMS-03"
+      ],
+      "latency_ms": 135.22
+    },
+    {
+      "query_id": "q47",
+      "mode": "combined",
+      "case_type": "lost_pet",
+      "text": "german shepherd dog",
+      "expected": [
+        "PETS-13"
+      ],
+      "rank": 1,
+      "hit@1": true,
+      "hit@5": true,
+      "hit@10": true,
+      "mrr": 1.0,
+      "top_k_ids": [
+        "PETS-13",
+        "PETS-12",
+        "PETS-09",
+        "PETS-05",
+        "PETS-11",
+        "PETS-03",
+        "PETS-14",
+        "PETS-04",
+        "PETS-07",
+        "PETS-06"
+      ],
+      "latency_ms": 52.25
+    }
+  ]
+}

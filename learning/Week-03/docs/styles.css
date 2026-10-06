@@ -1,0 +1,400 @@
+/* ============================================================
+   Lostify AI - Technical Documentation Styles
+   A clean, readable design: sticky sidebar, code blocks, tables,
+   callouts, cards, score bars. No external fonts (system stack).
+   ============================================================ */
+
+:root {
+  --bg: #f7f8fb;
+  --surface: #ffffff;
+  --surface-2: #f0f3f9;
+  --ink: #1c2333;
+  --ink-soft: #4b5670;
+  --ink-mute: #7a849c;
+  --line: #e3e8f0;
+  --accent: #2563eb;
+  --accent-soft: #dbeafe;
+  --teal: #0d9488;
+  --teal-soft: #ccfbf1;
+  --amber: #d97706;
+  --amber-soft: #fef3c7;
+  --rose: #dc2626;
+  --rose-soft: #fee2e2;
+  --violet: #7c3aed;
+  --violet-soft: #ede9fe;
+  --code-bg: #0f172a;
+  --code-ink: #e2e8f0;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12);
+  --sidebar-w: 260px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.65;
+  font-size: 16px;
+}
+
+/* ---------------- Layout ---------------- */
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--ink);
+  color: #cbd5e1;
+  padding: 24px 16px;
+}
+
+.sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  margin: 0 0 4px 6px;
+}
+
+.sidebar .brand .logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--accent), var(--violet));
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+}
+
+.sidebar .subtitle { font-size: 12px; color: #8b98ad; margin: 0 0 18px 6px; }
+
+.sidebar nav a {
+  display: block;
+  padding: 7px 10px;
+  margin: 2px 0;
+  border-radius: 8px;
+  color: #aab6c8;
+  text-decoration: none;
+  font-size: 13.5px;
+  border-left: 3px solid transparent;
+}
+
+.sidebar nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+.sidebar nav a.active { color: #fff; background: rgba(37, 99, 235, 0.25); border-left-color: var(--accent); }
+
+.sidebar nav .group {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin: 16px 10px 4px;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 0 40px 80px;
+}
+
+/* ---------------- Hero ---------------- */
+.hero {
+  background: linear-gradient(135deg, #101827 0%, #1e3a8a 100%);
+  color: #fff;
+  border-radius: 0 0 20px 20px;
+  padding: 48px 44px 40px;
+  margin: 0 -40px 40px;
+}
+
+.hero h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.15; letter-spacing: -0.02em; }
+.hero p.tagline { margin: 0 0 18px; font-size: 16px; color: #c7d6f3; max-width: 640px; }
+.hero .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.hero .chip {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #e8eefc;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12.5px;
+}
+
+/* ---------------- Section shells ---------------- */
+section { margin: 44px 0; scroll-margin-top: 24px; }
+h2 {
+  font-size: 26px;
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+  padding-top: 8px;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 8px;
+}
+h2 .num {
+  color: var(--accent);
+  font-size: 16px;
+  vertical-align: middle;
+  margin-right: 6px;
+  font-family: var(--mono);
+}
+h3 { font-size: 19px; margin: 30px 0 8px; letter-spacing: -0.01em; }
+h4 { font-size: 16px; margin: 20px 0 6px; color: var(--ink-soft); }
+p { margin: 10px 0; }
+ul, ol { margin: 8px 0 14px; padding-left: 22px; }
+li { margin: 4px 0; }
+strong { color: var(--ink); }
+a { color: var(--accent); }
+hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
+
+/* ---------------- Code & pre ---------------- */
+code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 6px;
+  color: #0f2b6b;
+}
+pre {
+  background: var(--code-bg);
+  color: var(--code-ink);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  overflow-x: auto;
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin: 14px 0;
+  box-shadow: var(--shadow);
+}
+pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font-size: 13.5px;
+}
+pre .c  { color: #64748b; }   /* comment */
+pre .k  { color: #93c5fd; }   /* keyword */
+pre .s  { color: #86efac; }   /* string */
+pre .n  { color: #fca5a5; }   /* number */
+pre .f  { color: #fbbf24; }   /* function */
+pre .p  { color: #cbd5e1; }   /* punctuation */
+
+/* ---------------- Tables ---------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 14.5px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+thead th {
+  background: var(--surface-2);
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  padding: 10px 14px;
+}
+tbody td, tbody th {
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  vertical-align: top;
+}
+tbody tr:nth-child(even) { background: #fbfcfe; }
+td code, th code { white-space: nowrap; }
+
+/* ---------------- Cards ---------------- */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 18px 0; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+.card h4 { margin: 0 0 6px; font-size: 15px; }
+.card .tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-bottom: 8px;
+}
+.card p { margin: 0; font-size: 14px; color: var(--ink-soft); }
+
+/* ---------------- Callouts ---------------- */
+.callout {
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 14px 18px;
+  margin: 16px 0;
+  font-size: 15px;
+}
+.callout.success { border-color: var(--teal); background: var(--teal-soft); }
+.callout.warn { border-color: var(--amber); background: var(--amber-soft); }
+.callout.danger { border-color: var(--rose); background: var(--rose-soft); }
+.callout.violet { border-color: var(--violet); background: var(--violet-soft); }
+.callout .title { font-weight: 700; margin-bottom: 4px; display: block; }
+
+/* ---------------- Badges ---------------- */
+.badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 10px;
+  vertical-align: middle;
+}
+.badge.blue  { background: var(--accent-soft); color: var(--accent); }
+.badge.teal  { background: var(--teal-soft); color: var(--teal); }
+.badge.amber { background: var(--amber-soft); color: var(--amber); }
+.badge.rose  { background: var(--rose-soft); color: var(--rose); }
+.badge.violet{ background: var(--violet-soft); color: var(--violet); }
+.badge.gray  { background: var(--surface-2); color: var(--ink-mute); }
+
+/* ---------------- Score bars (frontend mock) ---------------- */
+.bar { margin: 8px 0; }
+.bar .bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 3px;
+}
+.bar .track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.bar .fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--violet));
+}
+.bar.final .fill { background: linear-gradient(90deg, #059669, #10b981); }
+
+/* ---------------- Mermaid-free diagram blocks ---------------- */
+pre.diagram {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: none;
+}
+pre.diagram code { font-size: 13px; }
+
+/* ---------------- Definition list ---------------- */
+dl { margin: 14px 0; }
+dt { font-weight: 700; margin-top: 12px; font-size: 15px; }
+dd { margin: 4px 0 0 0; color: var(--ink-soft); font-size: 14.5px; }
+
+/* ---------------- TOC in content (mobile fallback) ---------------- */
+.toc-content-only { display: none; }
+
+/* ---------------- HTTP method chips ---------------- */
+.method {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-radius: 6px;
+  padding: 2px 8px;
+  vertical-align: middle;
+}
+.method.get  { background: var(--teal-soft);  color: var(--teal); }
+.method.post { background: var(--accent-soft); color: var(--accent); }
+.method.del  { background: var(--rose-soft);  color: var(--rose); }
+td .method { white-space: nowrap; }
+
+/* ---------------- Numbered flow steps ---------------- */
+.flowsteps {
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+.flowsteps .step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  margin: 6px 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  font-size: 14.5px;
+}
+.flowsteps .step .n {
+  flex: 0 0 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--violet));
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+.flowsteps .step .t { color: var(--ink); }
+.flowsteps .step code { white-space: normal; }
+
+/* ---------------- Definition list tweaks ---------------- */
+dl dt { display: flex; gap: 8px; align-items: baseline; }
+dl dt::after { content: ""; }
+kbd {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
+/* ---------------- Footer ---------------- */
+footer {
+  border-top: 1px solid var(--line);
+  margin-top: 60px;
+  padding: 20px 0 4px;
+  color: var(--ink-mute);
+  font-size: 13.5px;
+}
+
+/* ---------------- Responsive ---------------- */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .content { padding: 0 20px 60px; }
+  .hero { margin: 0 -20px 28px; padding: 34px 24px; }
+  .hero h1 { font-size: 26px; }
+  h2 { font-size: 21px; }
+  .cards { grid-template-columns: 1fr; }
+}

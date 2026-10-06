@@ -1,0 +1,1226 @@
+kubernetes-day01.drawio<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lostify AI — Complete Technical Documentation</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="layout">
+
+  <!-- ===================== SIDE BAR ===================== -->
+  <aside class="sidebar">
+    <p class="brand"><span class="logo">L</span> Lostify AI</p>
+    <p class="subtitle">Technical documentation</p>
+    <nav>
+      <a href="#architecture">1&nbsp; System Architecture</a>
+      <a href="#stack">2&nbsp; The Technology Stack</a>
+      <div class="group">Under the hood</div>
+      <a href="#python">Python 3.13</a>
+      <a href="#pytorch">PyTorch</a>
+      <a href="#transformers">Transformers + CLIP</a>
+      <a href="#numpy">NumPy</a>
+      <a href="#faiss">FAISS</a>
+      <a href="#pillow">Pillow</a>
+      <a href="#fastapi">FastAPI + Uvicorn</a>
+      <a href="#sqlite">SQLite</a>
+      <div class="group">How the system works</div>
+      <a href="#pipeline">3&nbsp; Search Pipeline Step by Step</a>
+      <a href="#dataset">4&nbsp; Dataset &amp; Metadata</a>
+      <a href="#services">5&nbsp; The Services</a>
+      <a href="#ranking">6&nbsp; Scoring &amp; Ranking</a>
+      <a href="#evaluation">7&nbsp; Evaluation</a>
+      <a href="#api">8&nbsp; API Reference</a>
+      <div class="group">Frontend</div>
+      <a href="#frontend">9&nbsp; React + Tailwind Frontend</a>
+      <a href="#glossary">10&nbsp; Glossary</a>
+      <a href="#appendix">11&nbsp; Appendix</a>
+    </nav>
+  </aside>
+
+  <!-- ===================== CONTENT ===================== -->
+  <main class="content">
+
+    <header class="hero">
+      <h1>Lostify AI — Complete Technical Documentation</h1>
+      <p class="tagline">
+        A lost-and-found matching engine. A user reports a lost pet, person, or item
+        with a photo and/or a text description; the system finds and ranks the most
+        similar stored cases with an <b>explainable score</b>. This document explains
+        <b>every technology, why it is used, its features, and exactly how it works under the hood</b> —
+        including the <b>SQLite persistence layer</b> and the <b>live React + Tailwind frontend</b>.
+      </p>
+      <div class="meta">
+        <span class="chip">Week 03 · Matching Engine</span>
+        <span class="chip">CLIP × FAISS × FastAPI</span>
+        <span class="chip">44-case dataset</span>
+        <span class="chip">SQLite persistence</span>
+        <span class="chip">Top-1 93.6% baseline</span>
+        <span class="chip">41 / 41 unit tests</span>
+      </div>
+    </header>
+
+    <!-- ===================== 1. ARCHITECTURE ===================== -->
+    <section id="architecture">
+      <h2><span class="num">01</span>System Architecture</h2>
+      <p>
+        The system is a <b>pipeline</b>: it converts free-form input (an image, a sentence,
+        or both) into a mathematical vector, searches a pre-built vector index, then applies
+        business rules (metadata filtering) and a human-readable ranking. Everything is built so
+        a <b>React frontend can drive the same FastAPI service</b> later.
+      </p>
+
+      <pre class="diagram"><code>React Frontend (Vite) — http://localhost:5173   [built]
+   │  FormData: image file + text + query_type + location
+   ▼
+POST /search  (match)     POST /reports  (persist)     GET /reports  (list)
+   │                           │                             │
+   ▼                           ▼                             ▼
+CLIP (ViT-B/32) ─┐       CLIP embedded ──► CaseStore.add_case()      SQLite
+CLIP (ViT-B/32) ─┤       (new case vector)   │   index.add()      lostify.db
+   └── combine ──┘             │              │   write index     (source='user')
+        (L2-normalize)         ▼              │   + metadata files
+        ▼                    FAISS            ▼
+FAISS IndexFlatIP ──► Top 20   ──►  index now contains 44 + 1 vector
+        │
+        ▼
+Metadata filtering (case_type / category / status)
+        │
+        ▼
+Ranked score: 0.70·visual + 0.20·text + 0.10·location
+        │
+        ▼
+Top 5 results (explainable: visual/text/location/final)</code></pre>
+
+      <div class="callout">
+        <span class="title">The one-line summary</span>
+        <b>Images and text live in the same 512-dimension space</b>. Similarity = distance in that
+        space. FAISS finds the nearest stored vectors fast. Metadata + weights turn similarity
+        into a decision. New reports are embedded on the spot and appended to the live index, so
+        they become searchable <em>immediately</em> — no rebuild, no restart.
+      </div>
+
+      <div class="callout success">
+        <span class="title">Visual architecture diagram</span>
+        An interactive, colour-coded version of this pipeline (online + offline lanes, every component
+        tagged with its file) lives at
+        <a href="architecture.html">architecture.html</a>.
+      </div>
+
+      <p><b>Key design decisions:</b></p>
+      <ul>
+        <li><b>One combined embedding, one FAISS search</b> — we do not search twice and add scores;
+            we fuse image + text into a single vector, so the candidate set already reflects both modalities.</li>
+        <li><b>Wide net, then filter</b> — FAISS returns 20 candidates; metadata filtering (pets vs persons
+            vs items) removes wrong-type matches; ranking orders the survivors.</li>
+        <li><b>Explainable scores</b> — visual, text, location, and final scores are returned separately so a
+            user (or an examiner) sees <em>why</em> a case matched.</li>
+        <li><b>Precomputation</b> — all 44 case images are embedded once at build time. At request time the
+            model runs only on the <em>query</em>, and the search itself is a millisecond.</li>
+      </ul>
+    </section>
+
+    <!-- ===================== 2. STACK ===================== -->
+    <section id="stack">
+      <h2><span class="num">02</span>The Technology Stack</h2>
+      <p>
+        The stack is intentionally <b>small and standard</b>. Each tool below covers one job:
+        PyTorch/Transformers run the neural network, NumPy handles array math, FAISS does nearest
+        neighbour search, Pillow decodes images, FastAPI serves the API, and Uvicorn runs it.
+      </p>
+
+      <table>
+        <thead><tr><th>Technology</th><th>Job in this project</th><th>Where it appears</th></tr></thead>
+        <tbody>
+          <tr><td><code>Python 3.13</code></td><td>Language of the whole AI service</td><td>all <code>*.py</code></td></tr>
+          <tr><td><code>PyTorch</code></td><td>Runs the CLIP neural network</td><td><code>engine.py</code></td></tr>
+          <tr><td><code>transformers</code></td><td>Loads CLIP + processor</td><td><code>engine.py</code>, scripts</td></tr>
+          <tr><td><code>openai/clip-vit-base-patch32</code></td><td>The embedding model</td><td><code>engine.py</code></td></tr>
+          <tr><td><code>NumPy</code></td><td>Vector math, normalization</td><td>everywhere</td></tr>
+          <tr><td><code>faiss-cpu</code></td><td>Similarity index &amp; search</td><td><code>store.py</code></td></tr>
+          <tr><td><code>Pillow</code></td><td>Open/decode JPEG images</td><td><code>engine.py</code></td></tr>
+          <tr><td><code>FastAPI</code></td><td>HTTP API, validation, docs</td><td><code>app.py</code></td></tr>
+          <tr><td><code>uvicorn</code></td><td>ASGI web server</td><td><code>app.py</code></td></tr>
+          <tr><td><code>python-multipart</code></td><td>Parses uploaded files + form fields</td><td><code>app.py</code></td></tr>
+          <tr><td><code>sqlite3</code> (stdlib)</td><td>Zero-dependency database for reports</td><td><code>db.py</code></td></tr>
+          <tr><td><code>requests</code> / <code>httpx</code></td><td>Download dataset images</td><td><code>download_dataset.py</code>, <code>verify_dataset.py</code></td></tr>
+        </tbody>
+      </table>
+
+      <!-- Python -->
+      <h3 id="python">2.1 Python 3.13</h3>
+      <div class="cards">
+        <div class="card"><span class="tag">Why used</span><h4>Best ML ecosystem</h4><p>PyTorch, Transformers, FAISS, NumPy and FastAPI are all first-class Python libraries.</p></div>
+        <div class="card"><span class="tag">Features</span><h4>Reading clarity</h4><p>Expressive syntax keeps the ML pipeline readable and testable in tiny files.</p></div>
+        <div class="card"><span class="tag">Under the hood</span><h4>CPython + GIL</h4><p>Python interprets bytecode; heavy math is C-accelerated, and our singletons reuse models to avoid re-running the interpreter.</p></div>
+      </div>
+      <p>
+        All dependencies are pinned in <code>requirements.txt</code>. The environment is a project-local
+        virtual environment (<code>.venv</code>), so dependencies never leak into the system Python.
+      </p>
+
+      <!-- PyTorch -->
+      <h3 id="pytorch">2.2 PyTorch</h3>
+      <p><b>What it is:</b> an open-source deep-learning framework (Meta/now Linux Foundation) that runs
+        tensor operations on CPU or GPU with automatic differentiation.</p>
+      <p><b>Why we use it:</b> Hugging Face Transformers <em>is built on PyTorch</em>. We never write a
+        network ourselves — we rely on PyTorch to execute the CLIP model's forward pass.</p>
+      <ul>
+        <li><b>Tensors:</b> multi-dimensional arrays that can live on GPU devices. CLIP tensors here are shapes like <code>1x3x224x224</code> (image) and <code>1x77</code> (text tokens).</li>
+        <li><b><code>torch.no_grad()</code>:</b> disables gradient tracking during inference — saves memory and speeds up the forward pass, producing our embeddings.</li>
+        <li><b>Device handling:</b> <code>"cuda" if torch.cuda.is_available() else "cpu"</code>. This runs on CPU today (Apple Mac, no NVIDIA GPU) and automatically upgrades if a GPU ever exists.</li>
+      </ul>
+      <pre><code><span class="c"># engine.py — the actual inference call</span>
+with <span class="k">torch.no_grad</span>():
+    output = self.model.vision_model(**inputs).pooler_output   <span class="c"># 1×768 tok</span>
+    output = self.model.visual_projection(output)              <span class="c"># 1×512 vec</span></code></pre>
+
+      <!-- Transformers + CLIP -->
+      <h3 id="transformers">2.3 Hugging Face Transformers + CLIP</h3>
+      <p><b>What it is:</b> an open-source library that gives one-line downloads and execution of
+        thousands of pretrained transformer models through a consistent API.</p>
+
+      <h4>What CLIP is</h4>
+      <p>
+        CLIP (<b>C</b>ontrastive <b>L</b>anguage–<b>I</b>mage <b>P</b>re-training) was introduced by OpenAI
+        in 2021 in the paper <em>"Learning Transferable Visual Models From Natural Language Supervision"</em>.
+        It trains <b>two encoders at the same time</b>:
+      </p>
+      <div class="cards">
+        <div class="card"><span class="tag">Vision tower</span><h4>ViT-B/32</h4><p>A Vision Transformer: the 224×224 image is cut into 7×7 = 49 patches of 32×32 pixels, embedded, then processed by 12 transformer layers. Output projected to 512 dims.</p></div>
+        <div class="card"><span class="tag">Text tower</span><h4>Transformer</h4><p>A 12-layer text transformer. Text is lowercased, byte-pair-tokenized, padded/truncated to 77 tokens. Final token projected to 512 dims.</p></div>
+        <div class="card"><span class="tag">Objective</span><h4>Contrastive loss</h4><p>Train on 400M image–text pairs: pull matching pairs together in the 512-D space, push non-matching apart (InfoNCE loss).</p></div>
+      </div>
+
+      <h4>Why we use CLIP (not a cnn, not YOLO)</h4>
+      <ul>
+        <li><b>One space for images AND text.</b> This is the entire trick: an image of a white Persian cat and the sentence
+            "white persian cat" end up <em>near each other</em>. Classic classifiers can't compare a photo to a sentence.</li>
+        <li><b>Zero-shot.</b> We can describe a lost item in plain words and it matches the right image without ever
+            training a classifier on our categories.</li>
+        <li><b>512-D shared space.</b> Both modalities are projected to the same 512-dims, so one vector can represent
+            the user's whole report (see §2.4).</li>
+      </ul>
+
+      <h4>How the embedding is computed (under the hood)</h4>
+      <ol>
+        <li><code>CLIPProcessor</code> resizes the image to 224×224, converts to RGB, and normalises
+            pixels with CLIP's ImageNet statistics. For text it tokenises with the CLIP BPE tokenizer.</li>
+        <li>The vision tower gives a <code>pooler_output</code> of 768 dims; <code>visual_projection</code>
+            matrix maps it to 512.</li>
+        <li>The text tower gives a <code>pooler_output</code> of 512 dims (already 512); <code>text_projection</code> keeps it 512.</li>
+        <li>We <b>L2-normalize</b> the vector so its length is 1. Then <b>cosine similarity = inner product</b>,
+            which is exactly what our FAISS index computes.</li>
+      </ol>
+      <pre><code><span class="c"># The whole embedding recipe, from engine.py</span>
+inputs    = self.processor(images=image, return_tensors=<span class="s">"pt"</span>).to(self.device)
+output    = self.model.vision_model(**inputs).pooler_output
+output    = self.model.visual_projection(output)
+output    = output / output.norm(dim=-1, keepdim=True)      <span class="c"># unit length</span>
+return output.cpu().numpy().astype(np.float32).flatten()   <span class="c"># 512-D</span></code></pre>
+
+      <!-- NumPy -->
+      <h3 id="numpy">2.4 NumPy</h3>
+      <p><b>What it is:</b> the fundamental package for numerical arrays in Python. <b>Under the hood</b> it
+        wraps highly optimised C/Fortran SIMD code; vectorised operations avoid slow Python loops.</p>
+      <ul>
+        <li><b>Embedding fusion:</b> <code>np.asarray(emb, dtype=np.float32)</code> turns model output into arrays.</li>
+        <li><b>L2 normalization:</b> <code>vector / np.linalg.norm(vector)</code> — the length-1 guarantee that makes
+            cosine = inner product (crucial for FAISS, see §2.5).</li>
+        <li><b>DP3 storage format:</b> all 44 embeddings are saved as <code>.npy</code> files, the canonical NumPy format,
+            then loaded by the FAISS build script.</li>
+      </ul>
+
+      <!-- FAISS -->
+      <h3 id="faiss">2.5 FAISS</h3>
+      <p><b>What it is:</b> (<b>FA</b>cebook <b>AI Si</b>milarity <b>S</b>earch) a library for efficient similarity
+        search over dense vectors. It stores vectors in a flat array and answers nearest-neighbour queries.</p>
+
+      <h4>The index we use: <code>IndexFlatIP</code></h4>
+      <table>
+        <thead><tr><th>Setting</th><th>Value</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>Type</td><td><code>IndexFlatIP</code></td><td><b>I</b>nner <b>P</b>roduct — exact (brute-force) search, no approximation</td></tr>
+          <tr><td>Dimension</td><td><code>512</code></td><td>Matches CLIP's embedding size</td></tr>
+          <tr><td>Vectors</td><td><code>44</code> (<code>index.ntotal</code>)</td><td>One per case, stored as float32</td></tr>
+          <tr><td>Distance metric</td><td>cosine similarity</td><td>Because every vector is L2-normalized, inner product = cosine</td></tr>
+          <tr><td>Persistence</td><td><code>faiss.write_index / read_index</code></td><td>Index is built once and loaded at startup</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout success">
+        <span class="title">Why "inner product" = "cosine similarity"</span>
+        Cosine similarity compares direction: <code>cos(θ) = (a·b) / (‖a‖·‖b‖)</code>. If we force both vectors
+        to length 1 (L2-normalize), the denominator is always 1, so <code>cos(θ) = a·b</code> — a single dot
+        product. FAISS's <code>IndexFlatIP</code> computes exactly that.
+      </div>
+
+      <h4>How <code>index.search(query, k)</code> works</h4>
+      <ol>
+        <li>FAISS reshapes the query to <code>(1, 512)</code> and re-normalises it (<code>faiss.normalize_L2</code>).</li>
+        <li>It computes the inner product of the query with <b>every</b> stored vector — for 44 vectors that is a
+            trivially fast <code>44</code> multiply-adds (≈ 0.004 ms measured).</li>
+        <li>It returns two arrays: <code>indices</code> (positions in the index) and <code>similarities</code> (scores),
+            sorted descending.</li>
+        <li>We map index positions → case IDs using the parallel file <code>embeddings/case_names.txt</code>
+            (line <em>i</em> is the case at position <em>i</em>).</li>
+      </ol>
+      <pre><code><span class="c"># store.py — the thin FAISS wrapper</span>
+query = np.asarray(query_emb, dtype=np.float32).reshape(<span class="n">1</span>, -<span class="n">1</span>)
+faiss.normalize_L2(query)
+similarities, indices = self.index.search(query, top_k)          <span class="c"># brute-force dot</span>
+results = [(self.case_names[idx], float(sim)) for idx, sim in zip(indices[0], similarities[0])]
+return sorted(results, key=lambda x: x[1], reverse=True)</code></pre>
+
+      <p><b>Why not just <code>numpy</code> dot?</b> FAISS is the industry standard for this job and is free for
+        brute-force search. When the dataset grows to thousands or millions of cases, the same API accepts
+        <code>IndexIVFFlat</code>/<code>IndexHNSW</code> or GPU indexes <em>without changing our code</em>.</p>
+
+      <!-- Pillow -->
+      <h3 id="pillow">2.6 Pillow (PIL)</h3>
+      <p><b>What it is:</b> the default Python image library. <b>Why:</b> CLIP needs raw pixel tensors, and
+        uploaded/downloaded files arrive as JPEG/PNG bytes.</p>
+      <ul>
+        <li><code>Image.open(BytesIO(bytes)).convert("RGB")</code> decodes uploads in memory — no temp files.</li>
+        <li><code>convert("RGB")</code> guarantees a 3-channel image, so the processor never fails on RGBA/greyscale files.</li>
+        <li>Used in <code>engine.py</code> for queries and in <code>generate_embeddings.py</code> for building case vectors.</li>
+      </ul>
+
+      <!-- FastAPI + Uvicorn -->
+      <h3 id="fastapi">2.7 FastAPI + Uvicorn + python-multipart + Pydantic</h3>
+      <div class="cards">
+        <div class="card"><span class="tag">WEB FRAMEWORK</span><h4>FastAPI</h4><p>Declarative routes + automatic request parsing/validation and type-driven response models.</p></div>
+        <div class="card"><span class="tag">SERVER</span><h4>Uvicorn</h4><p>ASGI server that runs the FastAPI app, handling many connections with async I/O.</p></div>
+        <div class="card"><span class="tag">UPLOADS</span><h4>python-multipart</h4><p>Parses <code>multipart/form-data</code> — the file + form fields from the browser/React frontend.</p></div>
+      </div>
+
+      <h4>Why FastAPI specifically</h4>
+      <ul>
+        <li><b>Automatic OpenAPI docs.</b> Every endpoint appears at <code>/docs</code> — a clickable Swagger UI that
+            also gives the React team a live contract.</li>
+        <li><b>Type-driven.</b> Parameters are declared with types (<code>UploadFile</code>, <code>Form</code>,
+            <code>int</code>, <code>float</code>). Validation errors become clean <code>400</code> responses automatically.</li>
+        <li><b>Async friendly.</b> <code>await image.read()</code> reads uploads without blocking other requests.</li>
+        <li><b>Startup-time cost is paid once.</b> The CLIP model + FAISS index load at module import
+            (<code>engine = CLIPEngine()</code>), then every request reuses them.</li>
+      </ul>
+
+      <h4>How an HTTP request flows</h4>
+      <ol>
+        <li>Browser/React sends <code>multipart/form-data</code> (image file + text fields).</li>
+        <li>Uvicorn accepts the connection; <code>python-multipart</code> splits the body into parts.</li>
+        <li>FastAPI validates and injects them as typed parameters into the route function.</li>
+        <li>The route calls <code>engine.search(...)</code> synchronously (CPU-bound; Python releases compute to C), measures time,
+            and returns JSON.</li>
+        <li>FastAPI serialises the Python dict to JSON; Uvicorn streams the HTTP response.</li>
+      </ol>
+      <pre><code><span class="c"># app.py — the single search endpoint</span>
+@app.post(<span class="s">"/search"</span>)
+<span class="k">async def</span> <span class="f">search</span>(
+    image: UploadFile = File(None, description=<span class="s">"photo of the lost pet / person / item"</span>),
+    text: str         = Form(None, description=<span class="s">"description of the lost case"</span>),
+    query_type: str   = Form(None, description=<span class="s">"lost_pet | lost_item | lost_person"</span>),
+    location: str     = Form(None, description=<span class="s">"city / area of the loss"</span>),
+    top_k: int        = Form(<span class="n">5</span>),
+):</code></pre>
+
+      <div class="callout warn">
+        <span class="title">Browser-to-API rule to remember</span>
+        A browser must send file uploads using <code>FormData</code> and the <code>multer</code>-style content type
+        <code>multipart/form-data</code>. Sending <code>JSON</code> will not carry an image — the React section (§9)
+        shows the exact code.
+      </div>
+
+      <!-- SQLite -->
+      <h3 id="sqlite">2.8 SQLite (the persistence layer)</h3>
+      <p><b>What it is:</b> a self-contained, file-based relational database that ships inside Python's standard
+        library (<code>import sqlite3</code> — no server, no extra dependency). The whole database lives in one file,
+        <code>learning/Week-03/lostify.db</code>.</p>
+      <p><b>Why we use it:</b> the search index (<code>index.index</code>) is the <em>fast</em> storage but it only
+        keeps vectors and case IDs. To answer "list every report" and to remember <em>who submitted what</em>, we add a
+        friendly, queryable store. SQLite is the smallest thing that does that, is transactional (crash-safe),
+        and needs nothing to be installed.</p>
+
+      <h4>2.8.1 The schema</h4>
+      <pre><code><span class="c">-- db.py — created by init_db() on first startup</span>
+CREATE TABLE <span class="f">reports</span> (
+    report_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id     TEXT    UNIQUE NOT NULL,   <span class="c">-- PETS-15, PERS-11, ITEMS-21, ...</span>
+    case_type   TEXT    NOT NULL,          <span class="c">-- lost_pet | lost_item | lost_person</span>
+    category    TEXT,
+    title       TEXT,
+    description TEXT,
+    location    TEXT,
+    latitude    REAL,
+    longitude   REAL,
+    date_lost   TEXT,
+    status      TEXT    NOT NULL DEFAULT 'open',
+    source      TEXT    NOT NULL DEFAULT 'dataset',   <span class="c">-- 'dataset' seed vs 'user' submission</span>
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);</code></pre>
+
+      <table>
+        <thead><tr><th>Column</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td><code>report_id</code></td><td>internal auto-increment row id</td></tr>
+          <tr><td><code>case_id</code></td><td>the business key — must match the FAISS index + metadata files;
+              <code>UNIQUE</code> prevents duplicates and drives <code>next_case_id()</code></td></tr>
+          <tr><td><code>case_type / category / location / lat / lon / date_lost / status</code></td><td>the same record
+              schema as <code>metadata.json</code>, mirrored 1-to-1</td></tr>
+          <tr><td><code>source</code></td><td><code>'dataset'</code> for the seeded 44, <code>'user'</code> for
+              submissions — the frontend uses it to show a "New report" badge</td></tr>
+          <tr><td><code>created_at</code></td><td>timestamp; used for ordering the reports page</td></tr>
+        </tbody>
+      </table>
+
+      <h4>2.8.2 Seeding and lifecycle</h4>
+      <ol>
+        <li><code>init_db()</code> runs at API startup and creates the table if it does not exist.</li>
+        <li><code>seed_from_metadata()</code> reads the 44 records from <code>metadata.json</code> and inserts them
+            with <code>source='dataset'</code> (idempotent — it skips <code>case_id</code>s that already exist).</li>
+        <li><code>insert_report()</code> adds a user submission with <code>source='user'</code> in the same transaction
+            that closes the connection (autocommit).</li>
+        <li><code>next_case_id()</code> picks the next free ID per type by counting existing rows, so new reports
+            naturally continue the dataset prefixes (<code>PETS-15</code>, <code>PERS-11</code>, <code>ITEMS-21</code>…).</li>
+      </ol>
+      <pre><code><span class="c"># db.py — every query goes through the same tiny helper</span>
+<span class="k">def</span> insert_report(record, db_path=DB_PATH):
+    conn = connect(db_path)
+    try:
+        cur = conn.execute(
+            <span class="s">"INSERT INTO reports (case_id, case_type, category, title, description,"
+            " location, latitude, longitude, date_lost, status, source)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?)"</span>,
+            (record[<span class="s">"case_id"</span>], record[<span class="s">"case_type"</span>], record[<span class="s">"category"</span>],
+             record[<span class="s">"title"</span>], record[<span class="s">"description"</span>], record[<span class="s">"location"</span>],
+             record[<span class="s">"latitude"</span>], record[<span class="s">"longitude"</span>], record[<span class="s">"date_lost"</span>],
+             record[<span class="s">"status"</span>], record.get(<span class="s">"source"</span>, <span class="s">"dataset"</span>)),
+        )
+        conn.commit()
+        <span class="k">return</span> cur.lastrowid
+    <span class="k">finally</span>: conn.close()
+<span class="c"># Note: every helper takes db_path=DB_PATH so tests can point at a temp file.</span></code></pre>
+    </section>
+
+    <!-- ===================== 3. PIPELINE ===================== -->
+    <section id="pipeline">
+      <h2><span class="num">03</span>Search Pipeline, Step by Step</h2>
+      <p>This is the heart of the system (<code>engine.py</code> → <code>CLIPEngine.search</code>). Every step maps
+        to one concrete function you can read in the code.</p>
+
+      <table>
+        <thead><tr><th>#</th><th>Step</th><th>Function</th><th>Output</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Parse inputs</td><td><code>CLIPEngine.search</code></td><td><code>has_image</code>, <code>has_text</code></td></tr>
+          <tr><td>2</td><td>Embed the query</td><td><code>image_embedding_from_bytes</code> / <code>text_embedding</code></td><td>two 512-D vectors</td></tr>
+          <tr><td>3</td><td>Fuse modalities</td><td><code>combine_embeddings</code></td><td>one 512-D vector, length 1</td></tr>
+          <tr><td>4</td><td>Retrieve candidates</td><td><code>store.nearest(combined, 20)</code></td><td>top-20 (case_id, similarity)</td></tr>
+          <tr><td>5</td><td>Build score maps</td><td><code>_similarity_map</code></td><td>per-case visual/text scores</td></tr>
+          <tr><td>6</td><td>Filter</td><td><code>filter_candidates</code></td><td>only matching type/category/status</td></tr>
+          <tr><td>7</td><td>Rank</td><td><code>rank_candidates</code></td><td>sorted list with final_score</td></tr>
+          <tr><td>8</td><td>Slice</td><td><code>ranked[:top_k]</code></td><td>top 5 by default</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Step 3 in detail — why multimodal fusion works</h3>
+      <p>Both CLIP encoders output vectors in the <em>same</em> 512-D space, so a weighted sum is meaningful:</p>
+      <pre><code>combined = 0.7 × image_embedding + 0.3 × text_embedding
+combined = combined / ‖combined‖     <span class="c"># back to unit length</span></code></pre>
+      <p>The weights are normalised inside <code>combine_embeddings</code> (so 0.9/0.3 is treated as 0.75/0.25)
+        and fully confused when only one modality exists: image-only queries search with just the image vector,
+        text-only with just the text vector.</p>
+
+      <div class="callout">
+        <span class="title">Why Step 5 needs a second full-index scan</span>
+        The candidates come from the <em>combined</em> vector, but we want separate <code>visual_score</code> and
+        <code>text_score</code> per case. <code>_similarity_map</code> runs the raw image vector and the raw text
+        vector against the full 44-vector index once each. That is why scores are precise and explainable even
+        though the candidate pool came from a fused query.
+      </div>
+    </section>
+
+    <!-- ===================== 4. DATASET ===================== -->
+    <section id="dataset">
+      <h2><span class="num">04</span>Dataset &amp; Metadata</h2>
+
+      <h3>4.1 The numbers</h3>
+      <table>
+        <thead><tr><th>Case type</th><th>Count</th><th>Examples</th><th>ID prefix</th></tr></thead>
+        <tbody>
+          <tr><td><code>lost_pet</code></td><td>14</td><td>Persian cat, golden retriever, husky, parrot...</td><td><code>PETS-01 … PETS-14</code></td></tr>
+          <tr><td><code>lost_person</code></td><td>10</td><td>toddler, elderly man, schoolgirl...</td><td><code>PERS-01 … PERS-10</code></td></tr>
+          <tr><td><code>lost_item</code></td><td>20</td><td>bicycle, suitcase, phone, drone, backpack...</td><td><code>ITEMS-01 … ITEMS-20</code></td></tr>
+          <tr><td><b>Total</b></td><td><b>44</b></td><td colspan="2">images in <code>data/{pets,persons,items}/</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3>4.2 Two metadata files</h3>
+      <p><code>catalog.json</code> is the <b>source of truth</b>: the 44 cases plus the controlled categories
+        and city locations used. <code>metadata.json</code> is the <b>generated runtime file</b> loaded by
+        <code>CaseStore</code> — identical schema, exactly what FAISS serves.</p>
+
+      <pre><code><span class="c">// One record in metadata.json</span>
+{
+  <span class="s">"case_id"</span>:      <span class="s">"PETS-01"</span>,
+  <span class="s">"case_type"</span>:    <span class="s">"lost_pet"</span>,
+  <span class="s">"category"</span>:     <span class="s">"cat"</span>,
+  <span class="s">"title"</span>:        <span class="s">"White Persian Cat with Blue Collar"</span>,
+  <span class="s">"description"</span>:  <span class="s">"White Persian cat with a blue collar, lost near the park"</span>,
+  <span class="s">"location"</span>:     <span class="s">"Islamabad"</span>,
+  <span class="s">"latitude"</span>:     <span class="n">33.6844</span>,
+  <span class="s">"longitude"</span>:    <span class="n">73.0479</span>,
+  <span class="s">"date_lost"</span>:   <span class="s">"2026-08-28"</span>,
+  <span class="s">"image_path"</span>:   <span class="s">"data/pets/PETS-01.jpg"</span>,
+  <span class="s">"status"</span>:       <span class="s">"open"</span>
+}</code></pre>
+
+      <table>
+        <thead><tr><th>Field</th><th>Why it exists</th><th>Used for</th></tr></thead>
+        <tbody>
+          <tr><td><code>case_type</code></td><td>defines the top-level filter</td><td>filtering (§5.2)</td></tr>
+          <tr><td><code>category</code></td><td>controlled label (cat, dog, bicycle...)</td><td>filtering</td></tr>
+          <tr><td><code>description</code></td><td>semantic text context</td><td>not yet in scoring — future text-side boost</td></tr>
+          <tr><td><code>location</code></td><td>city name</td><td>exact-match location score</td></tr>
+          <tr><td><code>latitude/longitude</code></td><td>geographic coordinates</td><td>haversine distance score (§6)</td></tr>
+          <tr><td><code>date_lost</code>, <code>status</code></td><td>operational fields</td><td>status filtering, display in frontend cards</td></tr>
+        </tbody>
+      </table>
+
+      <h3>4.3 How the images were collected</h3>
+      <ol>
+        <li><b>9 images copied from Week 02</b> — the original prototype items.</li>
+        <li><b>35 images downloaded from the Openverse API</b> — a search API over CC-licensed (mostly Flickr) media.</li>
+        <li><b>Verification pass</b> — <code>verify_dataset.py</code> runs a CLIP zero-shot probe: for each case it asks
+            "is this image a pet / person / <em>category</em>?" and flags mismatches.</li>
+        <li><b>Fallback for failures</b> — 6 bad cases were replaced using the English Wikipedia API
+            (<code>upload.wikimedia.org</code>), which is stable and freely licensed.</li>
+      </ol>
+      <div class="callout warn">
+        <span class="title">Rate limiting (why the fallback exists)</span>
+        Anonymous Openverse requests are rate-limited (HTTP 401/429). The downloader automatically falls back to
+        the Wikipedia API, which only requires a descriptive <code>User-Agent</code> header.
+      </div>
+    </section>
+
+    <!-- ===================== 5. SERVICES ===================== -->
+    <section id="services">
+      <h2><span class="num">05</span>The Services (how the code is organised)</h2>
+      <p>The pipeline is split into four small, testable services under <code>services/</code>, plus the SQLite layer in
+        <code>db.py</code>. Each name says what it does; each is unit-tested (41 tests, < 0.1 s).</p>
+
+      <h3>5.1 <code>store.py</code> — CaseStore</h3>
+      <p>Loads the three runtime artifacts once and keeps them in sync:</p>
+      <ul>
+        <li><code>faiss.read_index("embeddings/index.index")</code> — the 44-vector index</li>
+        <li><code>embeddings/case_names.txt</code> — position → <code>case_id</code> mapping</li>
+        <li><code>metadata.json</code> — the case records</li>
+      </ul>
+      <p>Exposes <code>search()</code> (raw FAISS), <code>nearest()</code> (returns <code>(case_id, sim)</code>
+        pairs sorted), and — new this week — <code>add_case()</code>. Because the index can never be mistaken for the
+        metadata order, the mapping file is the only alignment guarantee.</p>
+
+      <h4>5.1.1 <code>add_case()</code> — grow the index live</h4>
+      <p>Called by <code>POST /reports</code>. Input: a brand-new <code>case_id</code>, its 512-D CLIP embedding, and
+        its metadata record. It appends the vector to the FAISS index and persists <em>all three</em> artifacts so the
+        case survives a restart:</p>
+      <pre><code><span class="c"># services/store.py — add_case()</span>
+vector = np.asarray(embedding, dtype=np.float32).reshape(1, -1)
+faiss.normalize_L2(vector)                    <span class="c"># keep cosine = inner product</span>
+self.index.add(vector)                        <span class="c"># ntotal 44 → 45</span>
+
+<span class="k">if</span> case_id <span class="k">not in</span> self.case_names: self.case_names.append(case_id)
+self.metadata[case_id] = metadata
+
+faiss.write_index(self.index, self.index_path)          <span class="c"># index.index</span>
+<span class="k">with</span> open(self.names_path, <span class="s">"w"</span>) <span class="k">as</span> f:  f.write(<span class="s">"\n"</span>.join(self.case_names))  <span class="c"># names</span>
+<span class="k">with</span> open(self.metadata_path, <span class="s">"w"</span>) <span class="k">as</span> f: json.dump(self.metadata, f)      <span class="c"># metadata.json</span></code></pre>
+      <div class="callout warn">
+        <span class="title">A bug we caught (and why the lesson is in the docs)</span>
+        An early version of <code>add_case()</code> took default file paths. The unit tests called it without
+        overriding those defaults, so test vectors were <b>persisted into the real <code>index.index</code> /
+        <code>metadata.json</code></b> and the 44-case dataset collapsed to two records. Recovery was a re-run of
+        <code>create_metadata.py</code> + <code>build_faiss_index.py</code> (the <code>.npy</code> vectors and images
+        were never touched). The fix: <code>add_case()</code> now writes to the same paths the store was loaded from,
+        so tests can never hit production data. The regression tests <code>tests/test_store_add_case.py</code> now
+        verify both persistence and that the production files stay untouched.
+      </div>
+
+      <h3>5.2 <code>filtering_service.py</code> — filter_candidates</h3>
+      <p>Runs AFTER FAISS but BEFORE ranking. Applies simple, strict filters so a "lost white cat" never returns a
+        white dog, shirt, or car:</p>
+      <pre><code>if query_type:  keep cases where case_type == query_type   <span class="c"># lost_pet / lost_item / lost_person</span>
+if category:   keep cases where category == category     <span class="c"># cat, dog, bicycle, ... (case-insensitive)</span>
+if status:     keep cases where status == status         <span class="c"># open / closed</span></code></pre>
+      <div class="callout">
+        <span class="title">Why filter after search and not before the query embedding</span>
+        Filtering is a <em>decision</em>, not a vector operation. Broad recall first (top 20), precision later
+        (metadata equality). This keeps one FAISS index that works for every type.
+      </div>
+
+      <h3>5.3 <code>multimodal_service.py</code> — combine_embeddings</h3>
+      <p>Fuses image + text into one vector (full logic in §3 Step 3). Handles all three cases (image only,
+        text only, both) and raises <code>ValueError</code> for a zero vector or no inputs.</p>
+
+      <h3>5.4 <code>ranking_service.py</code> — rank_candidates</h3>
+      <p>Computes the weighted, explainable scores and sorts. Full formula in §6. It also contains the
+        <code>haversine_km</code> and <code>location_score</code> helpers used for the location component.</p>
+
+      <h3>5.5 <code>engine.py</code> — CLIPEngine (the conductor)</h3>
+      <p>Not a "service" in the folder, but the integration point: one class that owns the model, the processor,
+        and the store, and exposes <code>search()</code> (read path) and <code>add_report()</code> (write path).
+        Every entry point shares it:</p>
+      <pre class="diagram"><code>app.py ────────────────┐
+similarity_search.py ──┤──► CLIPEngine.search() ──► ranked list      (read)
+evaluation/evaluate.py ┘    CLIPEngine.add_report()                 (write)
+                                │
+                                ▼
+                  embed image ──► store.add_case() ──► 44 → 45 vectors</code></pre>
+
+      <h3>5.6 <code>db.py</code> — SQLite persistence</h3>
+      <p>The repository layer for <code>lostify.db</code> (full schema in <a href="#sqlite">§2.8</a>). Five functions,
+        all independently testable with a temp file:</p>
+      <table>
+        <thead><tr><th>Function</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>init_db()</code></td><td><code>CREATE TABLE IF NOT EXISTS reports</code> (idempotent)</td></tr>
+          <tr><td><code>seed_from_metadata()</code></td><td>insert the 44 dataset records (<code>source='dataset'</code>), skipping ids already present</td></tr>
+          <tr><td><code>insert_report(record)</code></td><td>add one report (<code>source='user'</code> when submitted via API)</td></tr>
+          <tr><td><code>list_reports()</code></td><td>rows for <code>GET /reports</code>, newest first</td></tr>
+          <tr><td><code>next_case_id(case_type)</code></td><td>next free id per prefix, so ids never collide</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ===================== 6. RANKING ===================== -->
+    <section id="ranking">
+      <h2><span class="num">06</span>Scoring &amp; Ranking (why a case "matches")</h2>
+
+      <h3>6.1 The formula</h3>
+      <pre><code>final_score = (0.70 × visual_similarity
+             + 0.20 × text_similarity
+             + 0.10 × location_score)
+                ÷ (sum of weights actually present)</code></pre>
+      <p>Weights default to 0.70 / 0.20 / 0.10 but are <b>renormalised over the active components</b>. For a
+        text-only query there is no visual component, so text (0.20) and location (0.10) are re-weighted to
+        sum to 1.0 — the final score is always a true 0–1 blend, not an artificially deflated number.</p>
+
+      <table>
+        <thead><tr><th>Component</th><th>Source</th><th>How it is computed</th></tr></thead>
+        <tbody>
+          <tr><td>visual</td><td>image (if provided)</td><td>cosine similarity of the raw image vector vs each case, from a full-index scan</td></tr>
+          <tr><td>text</td><td>text (if provided)</td><td>cosine similarity of the raw text vector vs each case</td></tr>
+          <tr><td>location</td><td><code>location</code> field or lat/lon</td><td>exact city match → 1.0, else haversine decay (see below)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>6.2 The location component</h3>
+      <p><code>location_score</code> implements a simple "proximity bonus":</p>
+      <ul>
+        <li><b>Exact city-name match</b> (case-insensitive) → <code>1.0</code>. E.g. query "Islamabad" and case "Islamabad".</li>
+        <li><b>Otherwise</b>, if coordinates are known, compute the great-circle distance with the
+            <b>haversine formula</b> and decay linearly from 1.0 at 0 km to 0.0 beyond 200 km:
+            <code>max(0, 1 − distance_km / 200)</code>.</li>
+        <li><b>No query location</b> → the component is <code>None</code> and excluded from the final blend
+            (weight goes back to visual/text).</li>
+      </ul>
+      <table>
+        <thead><tr><th>Query</th><th>Case</th><th>Distance</th><th>Location score</th></tr></thead>
+        <tbody>
+          <tr><td>Islamabad</td><td>Islamabad</td><td>same city</td><td><b>1.0</b></td></tr>
+          <tr><td>Rawalpindi</td><td>Islamabad</td><td>≈ 12 km</td><td><b>0.94</b></td></tr>
+          <tr><td>Lahore</td><td>Islamabad</td><td>≈ 270 km</td><td><b>0.0</b> (capped)</td></tr>
+          <tr><td>(none)</td><td>any</td><td>—</td><td><b>None</b> (excluded)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>6.3 A worked example (real output)</h3>
+      <p>Query: <code>text="lost white persian cat in Islamabad"</code>, <code>query_type=lost_pet</code>,
+        returned <code>PETS-01</code> at rank 1:</p>
+      <pre><code>case_id      = PETS-01   White Persian Cat with Blue Collar
+visual_score = None      (no image provided)
+text_score   = 0.2879    (cosine match between the text and the cat photo)
+location_score = 1.0     (exact "Islamabad" match)
+final_score  = 0.5253    = (0.20×0.2879 + 0.10×1.0) ÷ (0.20 + 0.10)</code></pre>
+      <p>The next pet, <code>PETS-04</code> (Grey Tabby, Faisalabad), scored 0.1517 — lower text similarity and
+        a 0.0 location score. That is explainable: the UI can show <em>why</em> PETS-01 is first.</p>
+    </section>
+
+    <!-- ===================== 7. EVALUATION ===================== -->
+    <section id="evaluation">
+      <h2><span class="num">07</span>Evaluation (does it actually work?)</h2>
+
+      <h3>7.1 The metric vocabulary</h3>
+      <table>
+        <thead><tr><th>Metric</th><th>Question it answers</th><th>Definition</th></tr></thead>
+        <tbody>
+          <tr><td>Hit@1</td><td>"Is the right case first?"</td><td>1 if the expected case is rank 1</td></tr>
+          <tr><td>Hit@5 / Hit@10</td><td>"Is it in the first page?"</td><td>1 if the expected case appears in the top k</td></tr>
+          <tr><td>Top-k accuracy</td><td>aggregate form</td><td>fraction of queries that hit at each k</td></tr>
+          <tr><td>MRR</td><td>"How high up, on average?"</td><td>mean of <code>1/rank</code> over queries (0 if missing)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>7.2 The test set</h3>
+      <p><code>evaluation/test_dataset.json</code> holds <b>47 queries</b>: a text description, a reference image
+        path, or both — each with its expected <code>case_id</code>:</p>
+      <table>
+        <thead><tr><th>Mode</th><th>Count</th><th>Examples (query_id)</th></tr></thead>
+        <tbody>
+          <tr><td><code>text</code></td><td>29</td><td><code>q01</code> "white persian cat", <code>q25</code> "silver water bottle with blue band"</td></tr>
+          <tr><td><code>image</code></td><td>12</td><td><code>q30</code>→<code>q41</code>, each reuses a case image (self-retrieval)</td></tr>
+          <tr><td><code>combined</code></td><td>6</td><td><code>q42</code>→<code>q47</code>, image + text together</td></tr>
+        </tbody>
+      </table>
+
+      <h3>7.3 Measured results (<code>results.json</code>)</h3>
+      <table>
+        <thead><tr><th>Group</th><th>n</th><th>Top-1</th><th>Top-5</th><th>Top-10</th><th>MRR</th></tr></thead>
+        <tbody>
+          <tr><td><b>Overall</b></td><td>47</td><td><b>93.6%</b></td><td><b>97.9%</b></td><td><b>100%</b></td><td><b>0.9605</b></td></tr>
+          <tr><td>Image</td><td>12</td><td>100%</td><td>100%</td><td>100%</td><td>1.0000</td></tr>
+          <tr><td>Text</td><td>29</td><td>89.7%</td><td>96.5%</td><td>100%</td><td>0.9360</td></tr>
+          <tr><td>Combined</td><td>6</td><td>100%</td><td>100%</td><td>100%</td><td>1.0000</td></tr>
+          <tr><td><em>lost_pet</em></td><td>19</td><td>100%</td><td>100%</td><td>100%</td><td>1.0000</td></tr>
+          <tr><td><em>lost_person</em></td><td>10</td><td>90.0%</td><td>90.0%</td><td>100%</td><td>0.9143</td></tr>
+          <tr><td><em>lost_item</em></td><td>18</td><td>88.9%</td><td>100%</td><td>100%</td><td>0.9444</td></tr>
+        </tbody>
+      </table>
+      <div class="callout success">
+        <span class="title">Latency</span>
+        FAISS brute-force search: <b>0.004 ms</b>. Total request time: <b>~80–110 ms</b> on CPU — almost all of it
+        CLIP inference on the query (image ≈ +30–150 ms after model warm-up). A GPU or caching would reduce the
+        model part further, but 100 ms is comfortably fast for a web demo.
+      </div>
+
+      <h3>7.4 Honest reading of the results</h3>
+      <ul>
+        <li><b>Image mode is 100%</b> because image queries are self-retrieval (an image finds itself) — it verifies
+            the plumbing, not the AI.</li>
+        <li><b>Text mode is the real test.</b> 89.7% Top-1. Two known misses: a toddler described only as
+            "young toddler in bright yellow sweater" (PERS-07) and a generic water bottle (ITEMS-18). Both succeed
+            as soon as the user adds a photo → this is the biggest argument for the combined image+text form.</li>
+        <li><b>Everything is reproducible.</b> <code>python evaluation/evaluate.py</code> re-runs the 47 queries and
+            rewrites <code>results.json</code>. Any change to data/weights/code is measured against the same set.
+            That is the "measure before improving" loop for Week 04.</li>
+      </ul>
+    </section>
+
+    <!-- ===================== 8. API ===================== -->
+    <section id="api">
+      <h2><span class="num">08</span>API Reference</h2>
+      <p>Base URL: <code>http://localhost:8000</code> · Interactive docs: <code>/docs</code> ·
+        OpenAPI JSON: <code>/openapi.json</code></p>
+
+      <h3>8.0 Endpoint map</h3>
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><span class="method get">GET</span></td><td><code>/</code></td><td>service name + endpoint list</td></tr>
+          <tr><td><span class="method get">GET</span></td><td><code>/health</code></td><td>model, device, index size</td></tr>
+          <tr><td><span class="method get">GET</span></td><td><code>/cases</code></td><td>records straight from <code>metadata.json</code> (static view)</td></tr>
+          <tr><td><span class="method get">GET</span></td><td><code>/reports</code></td><td>all reports from <b>SQLite</b>, newest first (seed + user)</td></tr>
+          <tr><td><span class="method post">POST</span></td><td><code>/reports</code></td><td><b>save a new report</b> → image + metadata + FAISS vector + DB row</td></tr>
+          <tr><td><span class="method post">POST</span></td><td><code>/search</code></td><td>match a query against the index → top-k ranked results</td></tr>
+        </tbody>
+      </table>
+
+      <h3>8.1 GET <code>/</code></h3>
+      <pre><code>curl http://localhost:8000/
+<span class="c">#=> {"service":"Lostify AI - Week 03","status":"online",
+#    "endpoints":["GET /","GET /health","GET /cases","GET /reports",
+#                 "POST /reports","POST /search"],"docs":"/docs"}</span></code></pre>
+
+      <h3>8.2 GET <code>/health</code></h3>
+      <pre><code>curl http://localhost:8000/health
+<span class="c">#=> {"status":"healthy","model":"CLIP ViT-B/32","index_size":44,
+#    "case_types":["lost_pet","lost_person","lost_item"],"device":"cpu"}</span></code></pre>
+
+      <h3>8.3 GET <code>/cases</code> — dataset view (metadata.json)</h3>
+      <p>Lists the full dataset as ready-for-the-frontend records, including <code>image_path</code>
+        (served at <code>/static/…</code>). Serves the static <code>metadata.json</code> — useful for
+        inspecting exactly what the index was built from. The live gallery now prefers <code>/reports</code>.</p>
+      <pre><code>curl "http://localhost:8000/cases?limit=200"
+<span class="c">#=> {"count":44,"data":[
+#     {"case_id":"PETS-01","case_type":"lost_pet","category":"cat",
+#      "title":"White Persian Cat with Blue Collar",
+#      "description":"White Persian cat with a blue collar, lost near the park",
+#      "location":"Islamabad","latitude":33.6844,"longitude":73.0479,
+#      "date_lost":"2026-08-28","image_path":"data/pets/PETS-01.jpg","status":"open"},
+#     {...}, ... ]}</span></code></pre>
+
+      <h3>8.4 GET <code>/reports</code> — all reports (SQLite)</h3>
+      <p>Reads from <code>lostify.db</code> (<a href="#sqlite">§2.8</a>), so it always reflects both the 44
+        seeded cases <em>and</em> any user submissions, newest first. Each record carries
+        <code>source</code> (<code>'dataset'</code> or <code>'user'</code>) so the UI can badge new reports.</p>
+      <pre><code>curl "http://localhost:8000/reports?limit=500"
+<span class="c">#=> {"count":45,"data":[
+#     {"case_id":"PERS-11","case_type":"lost_person","category":"person",
+#      "title":"Young girl in school uniform",
+#      "description":"girl in a school uniform carrying a red backpack, lost in Lahore",
+#      "location":"Lahore","latitude":null,"longitude":null,
+#      "date_lost":"2026-09-20","image_path":"data/persons/PERS-11.jpg",
+#      "status":"open","source":"user","created_at":"2026-09-23 12:00:00"},
+#     {"case_id":"PETS-14", ..., "source":"dataset"}, ... ]}</span></code></pre>
+
+      <h3>8.5 POST <code>/reports</code> — save a new report</h3>
+      <p>Form fields (multipart/form-data). Saves the case <b>and</b> makes it searchable immediately
+        — no server restart, no index rebuild.</p>
+      <div class="flowsteps">
+        <div class="step"><span class="n">1</span><span class="t">Save upload to <code>data/&lt;type&gt;/&lt;id&gt;.jpg</code></span></div>
+        <div class="step"><span class="n">2</span><span class="t">CLIP-embed the image → 512-D vector</span></div>
+        <div class="step"><span class="n">3</span><span class="t"><code>CaseStore.add_case()</code> → <code>index.add()</code> + persist index / names / metadata</span></div>
+        <div class="step"><span class="n">4</span><span class="t"><code>INSERT INTO reports</code> (source='user') → <code>lostify.db</code></span></div>
+        <div class="step"><span class="n">5</span><span class="t">Return <code>201</code> with the new record</span></div>
+      </div>
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>image</code></td><td>file</td><td>—</td><td>photo of the lost pet/person/item</td></tr>
+          <tr><td><code>title</code></td><td>string</td><td>—</td><td>short display title</td></tr>
+          <tr><td><code>description</code></td><td>string</td><td>—</td><td>free-text detail (kept for display)</td></tr>
+          <tr><td><code>case_type</code></td><td>string</td><td>—</td><td><code>lost_pet</code> | <code>lost_item</code> | <code>lost_person</code></td></tr>
+          <tr><td><code>category</code></td><td>string</td><td>—</td><td>controlled category (cat, dog, bicycle…)</td></tr>
+          <tr><td><code>location</code></td><td>string</td><td>—</td><td>city / area</td></tr>
+          <tr><td><code>latitude</code> / <code>longitude</code></td><td>float</td><td>—</td><td>geographic position for the location score</td></tr>
+          <tr><td><code>date_lost</code></td><td>string</td><td>—</td><td><code>YYYY-MM-DD</code></td></tr>
+          <tr><td><code>status</code></td><td>string</td><td><code>open</code></td><td><code>open</code> | <code>closed</code></td></tr>
+        </tbody>
+      </table>
+      <pre><code>curl -X POST http://localhost:8000/reports \
+     -F "image=@data/persons/PERS-05.jpg" \
+     -F "title=Young girl in school uniform" \
+     -F "description=girl in a school uniform carrying a red backpack, lost in Lahore" \
+     -F "case_type=lost_person" -F "category=person" \
+     -F "location=Lahore" -F "date_lost=2026-09-20"
+<span class="c">#=> 201 {"message":"Report PERS-11 saved and added to the search index...",
+#        "case":{...,"image_path":"data/persons/PERS-11.jpg","source":"user"}}</span></code></pre>
+      <div class="callout success">
+        <span class="title">Verified end-to-end</span>
+        The smoke test above returned <code>PERS-11</code>, grew the index 44→45, appeared in
+        <code>GET /reports</code> with <code>source='user'</code>, and <em>immediately</em> topped a
+        <code>POST /search</code> with the same photo (<code>final_score 0.816</code>).
+      </div>
+
+      <h3>8.6 POST <code>/search</code> — the matching endpoint</h3>
+      <p>Form fields (multipart/form-data). At least one of <code>image</code> or <code>text</code> is required.</p>
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>image</code></td><td>file</td><td>—</td><td>photo of the lost pet/person/item</td></tr>
+          <tr><td><code>text</code></td><td>string</td><td>—</td><td>description</td></tr>
+          <tr><td><code>query_type</code></td><td>string</td><td>—</td><td><code>lost_pet</code> | <code>lost_item</code> | <code>lost_person</code> (else 400)</td></tr>
+          <tr><td><code>category</code></td><td>string</td><td>—</td><td>controlled category for filtering</td></tr>
+          <tr><td><code>location</code></td><td>string</td><td>—</td><td>city, boosts location score</td></tr>
+          <tr><td><code>top_k</code></td><td>int</td><td><code>5</code></td><td>1–50</td></tr>
+          <tr><td><code>candidate_k</code></td><td>int</td><td><code>20</code></td><td>FAISS pool before filtering</td></tr>
+          <tr><td><code>weight_image</code> / <code>weight_text</code></td><td>float</td><td><code>0.7</code>/<code>0.3</code></td><td>fusion weights (renormalised)</td></tr>
+        </tbody>
+      </table>
+
+      <pre><code>curl -F "text=lost white persian cat in Islamabad" \
+     -F "query_type=lost_pet" \
+     -F "location=Islamabad" \
+     http://localhost:8000/search</code></pre>
+      <pre><code><span class="c">// Response</span>
+{
+  <span class="s">"query"</span>: { <span class="s">"has_image"</span>: false, <span class="s">"text"</span>: <span class="s">"lost white persian cat in Islamabad"</span>,
+            <span class="s">"query_type"</span>: <span class="s">"lost_pet"</span>, <span class="s">"category"</span>: null, <span class="s">"location"</span>: <span class="s">"Islamabad"</span> },
+  <span class="s">"latency_ms"</span>: 1092.05,
+  <span class="s">"count"</span>: 5,
+  <span class="s">"results"</span>: [
+    {
+      <span class="s">"case_id"</span>: <span class="s">"PETS-01"</span>,
+      <span class="s">"case_type"</span>: <span class="s">"lost_pet"</span>, <span class="s">"category"</span>: <span class="s">"cat"</span>,
+      <span class="s">"title"</span>: <span class="s">"White Persian Cat with Blue Collar"</span>,
+      <span class="s">"location"</span>: <span class="s">"Islamabad"</span>, <span class="s">"date_lost"</span>: <span class="s">"2026-08-28"</span>,
+      <span class="s">"visual_score"</span>: null, <span class="s">"text_score"</span>: 0.2879,
+      <span class="s">"location_score"</span>: 1.0, <span class="s">"final_score"</span>: 0.5253
+    }, <span class="c">/* …4 more… */</span>
+  ]
+}</code></pre>
+
+      <h3>8.7 Error handling (contract the frontend must handle)</h3>
+      <table>
+        <thead><tr><th>Case</th><th>Status</th><th>Body</th></tr></thead>
+        <tbody>
+          <tr><td>No image and no text</td><td><code>400</code></td><td><code>{"detail":"Provide an image, text, or both."}</code></td></tr>
+          <tr><td>Bad <code>query_type</code></td><td><code>400</code></td><td><code>{"detail":"query_type must be one of ..."}</code></td></tr>
+          <tr><td><code>top_k</code> out of range</td><td><code>400</code></td><td><code>{"detail":"top_k must be between 1 and 50"}</code></td></tr>
+          <tr><td><code>POST /reports</code> missing photo + text + title</td><td><code>400</code></td><td><code>{"detail":"Add a photo, a description, or a title."}</code></td></tr>
+          <tr><td>Model/filter failure</td><td><code>500</code></td><td><code>{"detail":"search error: …"}</code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ===================== 9. FRONTEND ===================== -->
+    <section id="frontend">
+      <h2><span class="num">09</span>Frontend — React + Tailwind CSS (built)</h2>
+      <p>
+        The frontend is <b>implemented and running</b> at <code>http://localhost:5173</code>. It does three things:
+        <b>search</b> a photo/description against the index and show the top-5 matches with score bars,
+        <b>submit a new lost report</b> that is saved to the database and becomes searchable immediately, and
+        <b>browse every report</b> (the 44 seeded cases plus anything a user added) as a gallery.
+        It talks directly to the FastAPI backend via <code>POST /search</code>, <code>POST /reports</code>,
+        <code>GET /reports</code>, and <code>GET /cases</code>.
+      </p>
+
+      <h3>9.1 Why React &amp; Tailwind</h3>
+      <div class="cards">
+        <div class="card"><span class="tag">React</span><h4>Reactive UI</h4><p>Component model = one upload card, one result card, reused everywhere. State updates re-render only what changed.</p></div>
+        <div class="card"><span class="tag">React</span><h4>Ecosystem</h4><p>Vite dev server, react-router for pages, axios/fetch for HTTP, easy form + file handling.</p></div>
+        <div class="card"><span class="tag">Tailwind</span><h4>Utility-first CSS</h4><p>Ship styling quickly with classes (<code>bg-slate-50 grid gap-4</code>…) instead of hand-writing a CSS file per component.</p></div>
+        <div class="card"><span class="tag">Tailwind</span><h4>Consistent + dark-mode ready</h4><p>Design tokens in <code>tailwind.config</code>. Score bars, badges, cards all stay visually consistent.</p></div>
+      </div>
+
+      <h3>9.2 CORS + images — already enabled on the API</h3>
+      <p>The running service already has everything a browser needs (verified live):</p>
+      <ul>
+        <li><b>CORS middleware</b> in <code>app.py</code> — <code>allow_origins=["*"]</code>, so calls from
+            <code>http://localhost:5173</code> and any other origin work.</li>
+        <li><b>Static mount</b> — <code>app.mount("/static", StaticFiles(directory="data"))</code>, so a stored
+            <code>image_path</code> like <code>data/pets/PETS-01.jpg</code> is served at
+            <code>/static/pets/PETS-01.jpg</code> for thumbnails.</li>
+      </ul>
+      <pre><code><span class="c"># app.py — realised additions</span>
+<span class="k">from</span> fastapi.middleware.cors <span class="k">import</span> CORSMiddleware
+app.add_middleware(CORSMiddleware, allow_origins=[<span class="s">"*"</span>], allow_methods=[<span class="s">"*"</span>], allow_headers=[<span class="s">"*"</span>])
+
+<span class="k">from</span> fastapi.staticfiles <span class="k">import</span> StaticFiles
+app.mount(<span class="s">"/static"</span>, StaticFiles(directory=<span class="s">"data"</span>), name=<span class="s">"static"</span>)</code></pre>
+<p>The frontend lives at <code>learning/Week-03/frontend/</code> (Vite + React 18 + Tailwind v4).
+        Three routes: <code>/</code> (search form + top-5 results), <code>/new-report</code> (submit a report →
+        <code>POST /reports</code>), and <code>/reports</code> (gallery of every report).</p>
+
+      <h3>9.3 Page &amp; component map</h3>
+      <pre class="diagram"><code>App (react-router, src/App.jsx)
+├── /               SearchPage
+│   ├── Dropzone        ← drag &amp; drop image input + preview
+│   ├── form controls   ← description, type, city, top_k
+│   └── ResultCard[]    ← top 5 matches from POST /search
+│         └── ScoreBars ← final / visual / text / location bars
+├── /new-report     NewReportPage
+│   ├── Dropzone        ← photo of the lost case
+│   ├── form fields     ← title, description, type, category,
+│   │                     location, date, lat/lon
+│   └── success panel   ← saved record + links to gallery/search
+├── /reports        ReportsPage
+│   └── CaseCard[]      ← GET /reports → grid (read-only)
+│         └── StatusBadge + "New report" source badge
+└── shared: Header (nav: Search / New report / All reports), Footer
+             api.js: searchCases, createReport, fetchReports,
+                     fetchCases, fetchHealth, assetUrl</code></pre>
+
+      <h3>9.4 Upload + search — the exact React code</h3>
+      <p>Upload is a form. On submit, build <code>FormData</code> and send it. <b>Never send JSON</b> when a
+        file is involved.</p>
+      <pre><code><span class="k">import</span> { useState } <span class="k">from</span> <span class="s">"react"</span>;
+
+<span class="k">function</span> <span class="f">SearchPage</span>() {
+  <span class="k">const</span> [image, setImage] = useState(null);   <span class="c">// File | null</span>
+  <span class="k">const</span> [text, setText] = useState(<span class="s">""</span>);
+  <span class="k">const</span> [queryType, setQueryType] = useState(<span class="s">"lost_pet"</span>);
+  <span class="k">const</span> [location, setLocation] = useState(<span class="s">""</span>);
+  <span class="k">const</span> [results, setResults] = useState([]);
+  <span class="k">const</span> [loading, setLoading] = useState(false);
+  <span class="k">const</span> [error, setError] = useState(null);
+
+  <span class="k">async function</span> <span class="f">handleSubmit</span>(e) {
+    e.preventDefault();
+    <span class="k">if</span> (!image && !text.trim()) { setError(<span class="s">"Add a photo or a description."</span>); return; }
+
+    <span class="k">const</span> fd = new FormData();                   <span class="c">// ← multipart/form-data</span>
+    <span class="k">if</span> (image)  fd.append(<span class="s">"image"</span>, image);
+    <span class="k">if</span> (text)   fd.append(<span class="s">"text"</span>, text);
+    fd.append(<span class="s">"query_type"</span>, queryType);
+    <span class="k">if</span> (location) fd.append(<span class="s">"location"</span>, location);
+    fd.append(<span class="s">"top_k"</span>, <span class="s">"5"</span>);
+
+    setLoading(true); setError(null);
+    <span class="k">try</span> {
+      <span class="k">const</span> res = await fetch(<span class="s">"http://localhost:8000/search"</span>, { method: <span class="s">"POST"</span>, body: fd });
+      <span class="k">const</span> data = await res.json();
+      <span class="k">if</span> (!res.ok) { setError(data.detail); return; }
+      setResults(data.results);                 <span class="c">// top 5, already ranked</span>
+    } <span class="k">catch</span> {
+      setError(<span class="s">"Could not reach the AI service."</span>);
+    } <span class="k">finally</span> { setLoading(false); }
+  }
+  <span class="c">/* JSX in §9.5 renders `results` with Tailwind */</span>
+}</code></pre>
+
+      <h3>9.5 Rendering the Top-5 results (Tailwind)</h3>
+      <pre><code><span class="c">// ------- inside SearchPage's return -------</span>
+{error &amp;&amp; <span class="p">&lt;</span>p className=<span class="s">"text-rose-600 font-medium"</span><span class="p">&gt;</span>{error}<span class="p">&lt;/</span>p<span class="p">&gt;</span>}
+
+{results.<span class="f">map</span>((r, i) =&gt; (
+  <span class="p">&lt;</span>div key={r.case_id} className=<span class="s">"bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex gap-4"</span><span class="p">&gt;</span>
+    <span class="c">// image thumbnail — image_path served by the FastAPI static mount (see §9.7)</span>
+    <span class="p">&lt;</span>img src={<span class="s">`http://localhost:8000/static/${r.image_path}`</span>}
+         alt={r.title} className=<span class="s">"w-24 h-24 object-cover rounded-xl"</span> <span class="p">/&gt;</span>
+
+    <span class="p">&lt;</span>div className=<span class="s">"flex-1"</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span>div className=<span class="s">"flex items-center gap-2"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span>span className=<span class="s">"text-slate-400 text-sm font-mono"</span><span class="p">&gt;</span>#{i + 1} {r.case_id}<span class="p">&lt;/</span>span<span class="p">&gt;</span>
+        <span class="p">&lt;</span>span className={<span class="s">`rounded-full px-2.5 py-0.5 text-xs font-semibold
+             ${{ lost_pet: "bg-emerald-100 text-emerald-700",
+                lost_item: "bg-blue-100 text-blue-700",
+                lost_person: "bg-violet-100 text-violet-700" }[r.case_type]}`</span><span class="p">&gt;</span>
+          {r.case_type.replace(<span class="s">"_"</span>, <span class="s">" "</span>)}<span class="p">&lt;/</span>span<span class="p">&gt;</span>
+      <span class="p">&lt;/</span>div<span class="p">&gt;</span>
+
+      <span class="p">&lt;</span>h3 className=<span class="s">"font-semibold text-slate-900 mt-1"</span><span class="p">&gt;</span>{r.title}<span class="p">&lt;/</span>h3<span class="p">&gt;</span>
+      <span class="p">&lt;</span>p className=<span class="s">"text-sm text-slate-500"</span><span class="p">&gt;</span>📍 {r.location} · lost {r.date_lost}<span class="p">&lt;/</span>p<span class="p">&gt;</span>
+
+      <span class="c">// — score bars ($ScoreBars component maps this array) —</span>
+      <span class="p">&lt;</span>ScoreBars scores={{ final: r.final_score, visual: r.visual_score,
+                                text: r.text_score, location: r.location_score }} <span class="p">/&gt;</span>
+    <span class="p">&lt;/</span>div<span class="p">&gt;</span>
+  <span class="p">&lt;/</span>div<span class="p">&gt;</span>
+))}</code></pre>
+
+      <h3>9.6 The score-bar component</h3>
+      <pre><code><span class="k">function</span> <span class="f">ScoreBars</span>({ scores }) {
+  <span class="k">const</span> rows = [
+    { label: <span class="s">"Match"</span>,    value: scores.final },
+    { label: <span class="s">"Visual"</span>,   value: scores.visual },
+    { label: <span class="s">"Text"</span>,     value: scores.text },
+    { label: <span class="s">"Location"</span>, value: scores.location },
+  ].<span class="f">filter</span>(r =&gt; r.value != null);   <span class="c">// null = that component wasn't used</span>
+
+  <span class="k">return</span> (
+    <span class="p">&lt;</span>div className=<span class="s">"space-y-1.5"</span><span class="p">&gt;</span>
+      {rows.<span class="f">map</span>(r =&gt; (
+        <span class="p">&lt;</span>div key={r.label}<span class="p">&gt;</span>
+          <span class="p">&lt;</span>div className=<span class="s">"flex justify-between text-xs text-slate-500"</span><span class="p">&gt;</span>
+            <span class="p">&lt;</span>span<span class="p">&gt;</span>{r.label}<span class="p">&lt;/</span>span<span class="p">&gt;</span>
+            <span class="p">&lt;</span>span className=<span class="s">"font-mono"</span><span class="p">&gt;</span>{r.value.toFixed(<span class="n">2</span>)}<span class="p">&lt;/</span>span<span class="p">&gt;</span>
+          <span class="p">&lt;/</span>div<span class="p">&gt;</span>
+          <span class="p">&lt;</span>div className=<span class="s">"h-1.5 bg-slate-100 rounded-full overflow-hidden"</span><span class="p">&gt;</span>
+            <span class="p">&lt;</span>div className=<span class="s">"h-full rounded-full bg-blue-600 transition-all"</span>
+                 style={{ width: `${Math.round(r.value * <span class="n">100</span>)}%` }} <span class="p">/&gt;</span>
+          <span class="p">&lt;</span>/div<span class="p">&gt;</span>
+        <span class="p">&lt;</span>/div<span class="p">&gt;</span>
+      ))}
+    <span class="p">&lt;</span>/div<span class="p">&gt;</span>
+  );
+}</code></pre>
+
+<h3>9.7 Showing all reports (SQLite-backed gallery)</h3>
+      <p>The gallery reads <code>GET /reports</code> (SQLite) instead of the static <code>/cases</code>, so it
+        shows the 44 seeded cases <em>and</em> every new submission, newest first. The
+        <code>source='user'</code> rows get an amber "New report" badge:</p>
+      <pre><code><span class="c">// ReportsPage.jsx — reads the database via GET /reports</span>
+<span class="k">const</span> [reports, setReports] = useState([]);
+
+useEffect(<span class="p">()</span> =&gt; {
+  fetch(<span class="s">"http://localhost:8000/reports?limit=500"</span>)
+    .then(r =&gt; r.json())
+    .then(d =&gt; setReports(d.data));      <span class="c">// 44 seeded + any user reports</span>
+}, []);
+
+<span class="k">return</span> (
+  <span class="p">&lt;</span>div className=<span class="s">"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"</span><span class="p">&gt;</span>
+    {reports.<span class="f">map</span>(c =&gt; (
+      <span class="p">&lt;</span>div key={c.case_id} className=<span class="s">"bg-white rounded-2xl shadow-sm border p-4 hover:shadow-md"</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span>img src={assetUrl(c.image_path)}           <span class="c">// → /static/… via the API</span>
+             className=<span class="s">"h-40 w-full object-cover rounded-xl"</span> <span class="p">/&gt;</span>
+        <span class="p">&lt;</span>h3 className=<span class="s">"font-semibold mt-2"</span><span class="p">&gt;</span>{c.title}<span class="p">&lt;/</span>h3<span class="p">&gt;</span>
+        <span class="p">&lt;</span>p className=<span class="s">"text-sm text-slate-500"</span><span class="p">&gt;</span>
+          {c.location} · {c.case_type} · {c.date_lost}<span class="p">&lt;/</span>p<span class="p">&gt;</span>
+        {c.source === <span class="s">"user"</span> &amp;&amp; (
+          <span class="p">&lt;</span>span className=<span class="s">"rounded-full bg-amber-100 text-amber-700 px-2.5 py-0.5 text-xs font-semibold"</span><span class="p">&gt;</span>
+            New report<span class="p">&lt;/</span>span<span class="p">&gt;</span>
+        )}
+      <span class="p">&lt;/</span>div<span class="p">&gt;</span>
+    ))}
+  <span class="p">&lt;/</span>div<span class="p">&gt;</span>
+);</code></pre>
+
+      <div class="callout success">
+        <span class="title">Serving the case images — already live</span>
+        The API mounts the <code>data/</code> folder at <code>/static</code>, so
+        <code>data/pets/PETS-01.jpg</code> is reachable by the browser at
+        <code>http://localhost:8000/static/pets/PETS-01.jpg</code>. The React helper
+        <code>assetUrl(imagePath)</code> builds that URL from any record's <code>image_path</code>.
+      </div>
+
+      <h3>9.8 Making uploaded images show inside results</h3>
+      <p>For the user's own upload, no server round trip is needed for the preview — browsers can show local files:</p>
+      <pre><code><span class="k">const</span> previewUrl = image ? URL.createObjectURL(image) : null;
+<span class="p">&lt;</span>img src={previewUrl} className=<span class="s">"h-40 w-full object-cover rounded-xl"</span> <span class="p">/&gt;</span></code></pre>
+
+      <h3>9.9 The New Report page (submit → database → searchable)</h3>
+      <p><code>NewReportPage</code> (<code>/new-report</code>) is the write path of the whole system. On submit it
+        builds a <code>FormData</code> and posts it to <code>POST /reports</code> (the 5-step flow is in
+        <a href="#api">§8.5</a>). The API returns the saved record, which the page renders in a success panel with
+        links to the gallery or straight into a search:</p>
+      <pre><code><span class="c">// api.js — the client helper</span>
+<span class="k">export async function</span> <span class="f">createReport</span>(payload) {
+  <span class="k">const</span> form = <span class="k">new</span> FormData();
+  <span class="k">if</span> (payload.image)      form.append(<span class="s">"image"</span>, payload.image);
+  <span class="k">if</span> (payload.title)      form.append(<span class="s">"title"</span>, payload.title);
+  <span class="k">if</span> (payload.description)form.append(<span class="s">"description"</span>, payload.description);
+  form.append(<span class="s">"case_type"</span>, payload.caseType);
+  <span class="k">if</span> (payload.category)  form.append(<span class="s">"category"</span>, payload.category);
+  <span class="k">if</span> (payload.location)  form.append(<span class="s">"location"</span>, payload.location);
+  <span class="k">if</span> (payload.dateLost)   form.append(<span class="s">"date_lost"</span>, payload.dateLost);
+
+  <span class="k">const</span> res = <span class="k">await</span> fetch(<span class="s">"http://localhost:8000/reports"</span>, { method: <span class="s">"POST"</span>, body: form });
+  <span class="k">const</span> data = <span class="k">await</span> res.json();
+  <span class="k">if</span> (!res.ok) <span class="k">throw new</span> Error(data.detail || <span class="s">"Server error"</span>);
+  <span class="k">return</span> data;      <span class="c">// { message, case: { case_id: "PERS-11", ... } }</span>
+}</code></pre>
+      <pre><code><span class="c">// NewReportPage.jsx — after createReport() succeeds</span>
+setSaved(data);            <span class="c">// renders the success panel</span>
+setForm(emptyForm);        <span class="c">// reset the form</span>
+<span class="c">/* panel shows: case_id, title, StatusBadge, thumbnail via assetUrl(),</span>
+<span class="c">   plus "View all reports" (→ /reports) and "Search for it now" (→ /) */</span></code></pre>
+
+      <div class="callout success">
+        <span class="title">End-to-end verification (this feature)</span>
+        A report submitted from the browser arrived as <code>PERS-11</code> → <code>201</code> →
+        <code>lostify.db</code> row with <code>source='user'</code> → <code>data/persons/PERS-11.jpg</code> →
+        index grew 44→45 → the very next <code>POST /search</code> with that photo ranked it
+        <b>#1 (final_score 0.816)</b>. After verification the smoke report was removed and the index rebuilt to
+        a pristine 44-case state.
+      </div>
+
+      <h3>9.10 Before → after (what changed this week)</h3>
+      <table>
+        <thead><tr><th>Frontend action</th><th>Before</th><th>Now (implemented)</th></tr></thead>
+        <tbody>
+          <tr><td>Upload a report</td><td><code>POST /search</code> (match only)</td><td><code>POST /search</code> + <code>POST /reports</code> (persist)</td></tr>
+          <tr><td>Re-search matches</td><td>re-run same query</td><td>case stays; future searches hit the new vector</td></tr>
+          <tr><td>View all reports</td><td><code>GET /cases</code> (static 44)</td><td><code>GET /reports</code> (SQLite, 44 + user reports)</td></tr>
+          <tr><td>Ingest new case</td><td>—</td><td>embed image → <code>add_case()</code> appends to live <code>index.index</code>
+              → FAISS + metadata files + SQLite row (online, at request time)</td></tr>
+          <tr><td>Page count</td><td>2 (search + gallery)</td><td>3 (search + <b>new report</b> + gallery)</td></tr>
+        </tbody>
+      </table>
+      <p>The search code did not change at all — persistence was added <em>beside</em> it: a new endpoint, a new
+        <code>add_case()</code> write path, a new <code>db.py</code> layer, and a new page.</p>
+    </section>
+
+    <!-- ===================== 10. GLOSSARY ===================== -->
+    <section id="glossary">
+      <h2><span class="num">10</span>Glossary</h2>
+      <dl>
+        <dt>Embedding</dt><dd>A fixed-size vector of numbers that represents the meaning of an image or text. Here: 512 numbers from CLIP.</dd>
+        <dt>CLIP</dt><dd>OpenAI's Contrastive Language–Image Pretraining model; two encoders trained so matching image/text pairs sit close together in one space.</dd>
+        <dt>ViT-B/32</dt><dd>A Vision Transformer variant: "Base" size, image split into 32×32 pixel patches. It is the vision half of our CLIP model.</dd>
+        <dt>Patch</dt><dd>A 32×32 px tile of the 224×224 input image; 7×7 = 49 patches feed the transformer.</dd>
+        <dt>Contrastive objective / InfoNCE</dt><dd>Training loss that maximises similarity between correct pairs and minimises it for incorrect ones in each batch.</dd>
+        <dt>Cosine similarity</dt><dd>A measure of direction similarity between vectors, 0..1 here.</dd>
+        <dt>L2 normalisation</dt><dd>Dividing a vector by its length so it has magnitude 1; this makes cosine similarity equal to a simple dot product.</dd>
+        <dt>Inner product (dot product)</dt><dd><code>Σ aᵢ·bᵢ</code> — what FAISS's <code>IndexFlatIP</code> computes.</dd>
+        <dt>FAISS</dt><dd>Facebook AI Similarity Search — library of vector indexes and search algorithms.</dd>
+        <dt>IndexFlatIP</dt><dd>FAISS's exact brute-force inner-product index. "Flat" = no clustering/compression.</dd>
+        <dt>index.ntotal</dt><dd>Number of vectors stored in a FAISS index (here 44).</dd>
+        <dt>Candidate pool</dt><dd>The broad set FAISS returns before filtering — we ask for 20 candidates (<code>candidate_k</code>).</dd>
+        <dt>Metadata</dt><dd>Structured data about each case: type, category, location, date, status — served alongside the vector.</dd>
+        <dt>Multimodal</dt><dd>Using two or more input types together — here image + text in one search.</dd>
+        <dt>Zero-shot</dt><dd>Working on categories never seen in training, via natural-language descriptions.</dd>
+        <dt>Haversine formula</dt><dd>Great-circle distance between two coordinates on a sphere, in km.</dd>
+        <dt>MRR</dt><dd>Mean Reciprocal Rank — average of <code>1/rank</code> of the expected result over queries.</dd>
+        <dt>Hit@k / Top-k accuracy</dt><dd>Fraction of queries where the correct case appears in the top k results.</dd>
+        <dt>FastAPI</dt><dd>Python web framework; declarative routes, auto-validation, automatic OpenAPI/Swagger docs.</dd>
+        <dt>Uvicorn</dt><dd>ASGI server that runs the FastAPI application.</dd>
+        <dt>multipart/form-data</dt><dd>The HTTP content type for file uploads + form fields; required by <code>POST /search</code>.</dd>
+        <dt>CORS</dt><dd>Cross-Origin Resource Sharing — browser security rule preventing a page on one origin from calling another without server permission.</dd>
+        <dt>FormData</dt><dd>The browser API for building multipart bodies to send files to our backend.</dd>
+        <dt>KMP_DUPLICATE_LIB_OK</dt><dd>macOS env var workaround because `faiss-cpu` and `torch` both link an OpenMP runtime.</dd>
+        <dt>SQLite</dt><dd>A file-based relational database that ships inside Python (<code>import sqlite3</code>).
+          Here it stores every report in <code>lostify.db</code> — the 44 seeded cases plus user submissions.</dd>
+        <dt><code>lostify.db</code></dt><dd>The single SQLite file holding the <code>reports</code> table; created and
+          seeded automatically at API startup.</dd>
+        <dt>Seeding</dt><dd>Inserting the initial 44 dataset records from <code>metadata.json</code> into SQLite
+          (<code>seed_from_metadata()</code>), skipping ids that already exist so it can run repeatedly.</dd>
+        <dt>Transaction / commit</dt><dd>A unit of database work that either fully succeeds or is rolled back —
+          <code>sqlite3</code> commits on <code>conn.commit()</code>, keeping rows crash-safe.</dd>
+        <dt><code>source</code> column</dt><dd><code>'dataset'</code> vs <code>'user'</code> — how the DB distinguishes
+          seeded cases from live submissions; the frontend turns <code>'user'</code> into a "New report" badge.</dd>
+        <dt><code>add_case()</code> (live append)</dt><dd>Writes a new vector into the running FAISS index at request
+          time and persists index/names/metadata — the opposite of an <em>offline rebuild</em>.</dd>
+        <dt>Offline rebuild vs online append</dt><dd>Rebuilding re-runs <code>build_faiss_index.py</code> over all
+          <code>.npy</code> files (safe recovery); online append adds one case immediately (what
+          <code>POST /reports</code> uses).</dd>
+        <dt><code>case_id</code></dt><dd>The business key shared by metadata, the FAISS names file, and the
+          <code>reports</code> table (<code>PETS-01</code>…, <code>PERS-11</code>…, <code>ITEMS-21</code>…).</dd>
+      </dl>
+    </section>
+
+    <!-- ===================== 11. APPENDIX ===================== -->
+    <section id="appendix">
+      <h2><span class="num">11</span>Appendix</h2>
+
+      <h3>11.1 Run the whole system</h3>
+      <pre><code><span class="c"># From learning/Week-03 (macOS needs this for faiss + torch)</span>
+export KMP_DUPLICATE_LIB_OK=TRUE
+
+python -m pip install -r requirements.txt   <span class="c"># once</span>
+python create_metadata.py                   <span class="c"># (re)build metadata.json from catalog.json</span>
+python generate_embeddings.py               <span class="c"># 44 case images -> 512-D .npy</span>
+python build_faiss_index.py                 <span class="c"># -> embeddings/index.index + case_names.txt</span>
+python -m unittest discover -s tests -v     <span class="c"># 41 fast unit tests (no model load)</span>
+python evaluation/evaluate.py               <span class="c"># 47 queries -> evaluation/results.json</span>
+python app.py                               <span class="c"># FastAPI :8000 — also creates/seeds lostify.db</span>
+
+<span class="c"># --- frontend (second terminal) ---</span>
+cd learning/Week-03/frontend
+npm install
+npm run dev                                 <span class="c"># React + Tailwind on :5173</span>
+<span class="c"># open http://localhost:5173           → search (top 5 matches)</span>
+<span class="c"># open http://localhost:5173/new-report → save a new report to SQLite</span>
+<span class="c"># open http://localhost:5173/reports   → gallery (44 seeded + user reports)</span></code></pre>
+
+      <h3>11.2 Environment we developed on</h3>
+      <table>
+        <thead><tr><th>Item</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>OS / silicon</td><td>macOS, Apple ARM64</td></tr>
+          <tr><td>RAM / Python</td><td>8 GB, Python 3.13.2</td></tr>
+          <tr><td>Compute</td><td>CPU only (<code>cuda</code> auto-detected if a GPU exists)</td></tr>
+          <tr><td>PyTorch / Transformers</td><td>torch 2.14.0 · transformers 5.17.0</td></tr>
+          <tr><td>FAISS / NumPy</td><td>faiss-cpu 1.15.1 · numpy 2.5.2</td></tr>
+          <tr><td>Web</td><td>fastapi · uvicorn · python-multipart</td></tr>
+          <tr><td>Database</td><td><code>sqlite3</code> (Python standard library — no extra dependency)</td></tr>
+          <tr><td>Frontend</td><td>react 18.3.1 · vite 6.4.3 · tailwindcss 4.3.3 · react-router-dom · lucide-react</td></tr>
+        </tbody>
+      </table>
+
+      <h3>11.3 File index (what each file is for)</h3>
+      <table>
+        <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>catalog.json</code></td><td>source of truth: 44 cases + controlled categories/locations</td></tr>
+          <tr><td><code>metadata.json</code></td><td>runtime metadata loaded by CaseStore</td></tr>
+          <tr><td><code>lostify.db</code></td><td>SQLite database: <code>reports</code> table (seeded + user)</td></tr>
+          <tr><td><code>db.py</code></td><td>SQLite layer — schema, seed, insert, list, next id</td></tr>
+          <tr><td><code>download_dataset.py</code></td><td>fetch images (Openverse → Wikipedia fallback)</td></tr>
+          <tr><td><code>verify_dataset.py</code></td><td>CLIP zero-shot probe + <code>--fix</code> replacements</td></tr>
+          <tr><td><code>create_metadata.py</code></td><td>catalog → <code>metadata.json</code></td></tr>
+          <tr><td><code>generate_embeddings.py</code></td><td>case images → <code>embeddings/*.npy</code></td></tr>
+          <tr><td><code>build_faiss_index.py</code></td><td><code>.npy</code> → <code>index.index</code> + <code>case_names.txt</code> (offline rebuild)</td></tr>
+          <tr><td><code>engine.py</code></td><td>the integrated search pipeline (<code>search</code> + <code>add_report</code>)</td></tr>
+          <tr><td><code>app.py</code></td><td>FastAPI endpoints (<code>/</code>, <code>/health</code>, <code>/cases</code>, <code>/reports</code>, <code>POST /reports</code>, <code>/search</code>) + CORS + <code>/static</code></td></tr>
+          <tr><td><code>services/store.py</code></td><td>CaseStore — index + names + metadata, and <code>add_case()</code></td></tr>
+          <tr><td><code>services/{filtering,multimodal,ranking}_service.py</code></td><td>filter / fuse / score</td></tr>
+          <tr><td><code>evaluation/*</code></td><td>metrics + 47-query test set + runner + results</td></tr>
+          <tr><td><code>tests/*</code></td><td>41 unit tests (metrics, services, db, store), no model load</td></tr>
+          <tr><td><code>frontend/src/api.js</code></td><td>fetch helpers: search, createReport, fetchReports, fetchCases, assetUrl</td></tr>
+          <tr><td><code>frontend/src/pages/*</code></td><td>SearchPage · NewReportPage · ReportsPage</td></tr>
+          <tr><td><code>frontend/src/components/*</code></td><td>Header · Footer · Dropzone · ResultCard · CaseCard · ScoreBars · StatusBadge</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      Lostify AI — Week 03 documentation · CLIP × FAISS × FastAPI × SQLite · 44-case dataset ·
+      Top-1 93.6% · 41/41 unit tests · Live React frontend at <code>:5173</code> with
+      <code>POST /reports</code> persistence.
+    </footer>
+  </main>
+</div>
+</body>
+</html>

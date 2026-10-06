@@ -375,20 +375,54 @@ learning/Week-03/
 │   └── items/                   # lost-item images
 │
 ├── embeddings/                  # generated .npy vectors + FAISS index
+│   ├── *.npy                    # one 512-D vector per case
+│   ├── index.index              # FAISS IndexFlatIP (44 vectors)
+│   └── case_names.txt           # case order matching the index
 │
 ├── evaluation/
-│   ├── test_dataset.json        # queries mapped to expected cases
-│   ├── evaluate.py              # accuracy + latency measurement
+│   ├── test_dataset.json        # 47 queries mapped to expected cases
+│   ├── metrics.py               # dependency-free metrics
+│   ├── evaluate.py              # accuracy + latency runner
 │   └── results.json             # results output by evaluate.py
 │
 ├── services/
+│   ├── __init__.py
+│   ├── store.py                 # CaseStore: metadata + FAISS index wrapper
 │   ├── filtering_service.py     # metadata filtering (Day 3)
 │   ├── ranking_service.py       # combined score ranking (Day 4)
 │   └── multimodal_service.py    # image + text embedding fusion (Day 5)
 │
+├── tests/                       # unit tests (no model loads, fast)
+│   ├── test_metrics.py
+│   ├── test_services.py
+│   └── test_db.py                # sqlite + index persistence tests
+│
+├── db.py                        # SQLite layer (lostify.db) + seeding
+├── lostify.db                   # SQLite database (44 seeded + new reports)
+├── catalog.json                 # single source of truth (44 cases)
+├── metadata.json                # generated rich metadata
+├── requirements.txt             # pinned Python dependencies
+│
+├── frontend/                    # React + Tailwind (Vite) UI
+│   ├── index.html
+│   ├── vite.config.js           # react + tailwindcss vite plugins
+│   └── src/
+│       ├── main.jsx             # React entry
+│       ├── App.jsx              # router + layout (/, /new-report, /reports)
+│       ├── api.js               # fetch helpers for /search, /cases, /reports, /health
+│       ├── index.css            # tailwindcss import
+│       ├── components/          # Header, Footer, Dropzone, ResultCard,
+│       │                        # CaseCard, ScoreBars, StatusBadge
+│       └── pages/               # SearchPage (report form + top 5),
+│                                # NewReportPage (database submission),
+│                                # ReportsPage (all-reports gallery)
+│
+├── download_dataset.py          # fetch web images (Openverse + Wikipedia fallback)
+├── verify_dataset.py            # CLIP zero-shot probe + --fix Wikipedia fallback
+├── create_metadata.py           # realistic case metadata (44 cases)
 ├── generate_embeddings.py       # case image -> 512-D embeddings
-├── create_metadata.py           # realistic case metadata (30-50 cases)
 ├── build_faiss_index.py         # build/save index from embeddings
+├── engine.py                    # CLIPEngine: search pipeline shared by all entry points
 ├── similarity_search.py         # standalone search experiment script
 └── app.py                       # integrated FastAPI search service
 ```
@@ -441,6 +475,35 @@ Form fields:
 
 At least one of `image` or `text` is required.
 
+### Adding new reports (Persistence layer)
+
+`GET /reports` lists every report (dataset seed + user submissions) and
+`POST /reports` saves a brand-new lost report:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `image` | file (required) | photo of the lost pet / item / person |
+| `title` | string (optional) | short display title |
+| `description` | string (optional) | details embedded by CLIP for search |
+| `case_type` | string | `lost_pet`, `lost_item`, `lost_person` |
+| `category` | string (optional) | cat, dog, bicycle, … |
+| `location` | string (optional) | city/area |
+| `latitude` / `longitude` | float (optional) | for the location score |
+| `date_lost` | string (optional) | date |
+
+`POST /reports` flow:
+
+```text
+multipart upload -> save JPEG to data/<type>/<id>.jpg
+                 -> CLIP-embed -> CaseStore.add_case() -> FAISS index + metadata files
+                 -> INSERT INTO lostify.db (source = 'user')
+```
+
+- New IDs continue the dataset prefixes (`PERS-11`, `PETS-15`, `ITEMS-21`).
+- The case is embeddable **and** searchable immediately — no server restart.
+- `source` marks `'dataset'` (seeded) vs `'user'` entries; the frontend tags
+  user submissions with a "New report" badge.
+
 Example response item:
 
 ```json
@@ -459,37 +522,84 @@ Example response item:
 
 ## 8. How to Run (Week 03 Order)
 
+All scripts run from `learning/Week-03` (Python 3.13, deps in `requirements.txt`).
+Any script that imports both `faiss` and `torch` on macOS needs the OpenMP workaround:
+
 ```bash
-# 1. Build the dataset and metadata
+export KMP_DUPLICATE_LIB_OK=TRUE
+```
+
+```bash
+# 0. Install dependencies once
+python -m pip install -r requirements.txt
+
+# 1. Build the case catalog (source of truth for metadata)
 python create_metadata.py
 
-# 2. Generate embeddings for every case image
+# 2. Verify images / optionally fix mismatches (uses Wikipedia fallback)
+python verify_dataset.py            # add --fix to replace broken cases
+
+# 3. Generate embeddings for every case image
 python generate_embeddings.py
 
-# 3. Build the FAISS index
+# 4. Build the FAISS index
 python build_faiss_index.py
 
-# 4. Run the standalone search experiment
-python similarity_search.py
+# 5. Run the standalone search experiment
+python similarity_search.py --text "lost golden retriever dog in Karachi" --query_type lost_pet
 
-# 5. Evaluate accuracy and latency
-python evaluation/evaluate.py
+# 6. Run the unit tests (no model load, no GPU)
+python -m unittest discover -s tests -v
 
-# 6. Start the integrated API
-python app.py            # http://localhost:8000, docs at /docs
+# 7. Evaluate accuracy and latency
+python evaluation/evaluate.py       # writes evaluation/results.json
+
+# 8. Start the integrated API
+python app.py                       # http://localhost:8000, docs at /docs
+
+# 9. Start the React + Tailwind frontend (in a second terminal)
+cd frontend
+npm install
+npm run dev                         # http://localhost:5173
 ```
+
+The frontend has three pages that consume the API directly:
+
+- **`/` — Search**: upload a photo and/or description + type + city →
+  `POST /search` → shows the **top 5 matches** with explainable
+  visual/text/location/final score bars.
+- **`/new-report` — New report**: upload a photo + details →
+  `POST /reports` → saved to the **SQLite database** and added to the FAISS
+  index, with a success panel linking to the gallery or straight into a search.
+- **`/reports` — All reports**: `GET /reports` → a grid gallery of every
+  report (44 seeded + new submissions) with type + status badges and a
+  "New report" tag for user-submitted cases.
+
+CORS is enabled on the API and case images are served from
+`http://localhost:8000/static/…` so the browser can render thumbnails.
+
+Notes:
+
+- `download_dataset.py` is only needed to fetch fresh web images; the 44 case
+  images already live in `data/`.
+- The evaluation set is generation-anchored: image queries reuse a case image,
+  so image-mode accuracy is expected to be near 100%. Text queries measure the
+  harder, realistic part.
 
 ## 9. Week 03 Deliverables Checklist
 
 | # | Deliverable | Status |
 | --- | --- | --- |
-| 1 | Realistic 30-50 case dataset (`data/persons`, `data/pets`, `data/items`) |  |
-| 2 | Metadata filtering (`services/filtering_service.py`) |  |
-| 3 | Image + text multimodal search (`services/multimodal_service.py`) |  |
-| 4 | Ranking system (`services/ranking_service.py`) |  |
-| 5 | Combined similarity score (visual + text + location) |  |
-| 6 | Accuracy evaluation (`evaluation/evaluate.py`, `results.json`) |  |
-| 7 | Fully integrated FastAPI API (`app.py`) |  |
+| 1 | Realistic 30-50 case dataset (`data/persons`, `data/pets`, `data/items`) | ✅ 44 cases (14 pets / 10 persons / 20 items), `catalog.json` + `metadata.json` |
+| 2 | Metadata filtering (`services/filtering_service.py`) | ✅ tested (`tests/test_services.py`) |
+| 3 | Image + text multimodal search (`services/multimodal_service.py`) | ✅ true combined embedding |
+| 4 | Ranking system (`services/ranking_service.py`) | ✅ visual 0.70 / text 0.20 / location 0.10 |
+| 5 | Combined similarity score (visual + text + location) | ✅ `final_score` with explainable parts |
+| 6 | Accuracy evaluation (`evaluation/evaluate.py`, `results.json`) | ✅ 47 queries, results in `results.json` |
+| 7 | Fully integrated FastAPI API (`app.py`) | ✅ `POST /search` smoke-tested end to end |
+| 8 | React + Tailwind frontend (report → top 5 matches → gallery) | ✅ `frontend/`, wired to `/search` + `/reports`, image serving + CORS on the API |
+| 9 | Database persistence (`db.py`, `lostify.db`) | ✅ SQLite, seeded from `metadata.json`, `source` column |
+| 10 | New lost-report flow (save → embed → searchable) | ✅ `POST /reports` + `CaseStore.add_case()` + `/new-report` page, 41/41 tests |
 
 ## 10. Week 03 Outcome (Definition of Done)
 
@@ -507,3 +617,41 @@ CLIP -> FAISS -> Filtering -> Ranking -> Evaluation -> API
 - One integrated FastAPI endpoint servicing the frontend.
 
 Do not move to YOLO, ArcFace, OCR, or other models until this solid pipeline is complete.
+
+## 11. Week 03 Results (Measured Baseline)
+
+Produced by `evaluation/evaluate.py` on `evaluation/results.json`
+(44-case FAISS index, `openai/clip-vit-base-patch32`, CPU).
+
+```text
+Overall   n=47  Top-1 93.6%  Top-5 97.9%  Top-10 100%  MRR 0.9605
+Image     n=12  Top-1 100%      MRR 1.0000
+Text      n=29  Top-1 89.7%     MRR 0.9360   (image anchoring absent)
+Combined  n=6   Top-1 100%      MRR 1.0000
+
+By case type:
+Lost pets    n=19  Top-1 100%
+Lost persons n=10  Top-1 90.0%  (weakest: text-only toddler description GAP)
+Lost items   n=18  Top-1 88.9%  (weakest: visually generic objects)
+
+Latency:
+FAISS search    0.004 ms (avg)
+Total search    ~80-110 ms (avg, includes CLIP inference)
+```
+
+Known gaps:
+
+- Text mode is the honest measurement: two queries miss Top-1 (PERS-07 toddler
+  described by clothing, ITEMS-18 generic water bottle). Both improve when the
+  user also supplies an image (combined mode is 100%).
+
+## 12. Next Experiments (Week 04 Candidates)
+
+Change exactly one variable at a time and record the metric delta against the
+baseline above:
+
+1. Ranking weights (visual/text/location), e.g. text 0.30 for text-only queries.
+2. Candidate pool size (`candidate_k` 20 -> 50) for harder recall cases.
+3. Dataset: add images of the same objects in different backgrounds.
+4. Text pre-processing (title + description vs description only).
+5. `IndexFlatIP` -> `IndexIVFFlat` and measure latency vs recall trade-off.

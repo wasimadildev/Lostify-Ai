@@ -18,16 +18,45 @@ The project deliberately keeps the learning stages visible:
 - `learning/Week-03/` measures retrieval quality before model or dataset changes are introduced.
 - `documentation/` contains the weekly plan and project decisions.
 
-## Week 03: Measure Before Improving
+## Week 03: Complete Matching Engine
 
-The first Week 03 milestone is a small evaluation layer. It is intentionally independent of PyTorch, Transformers, FAISS, and the running services, so it can be learned and tested quickly:
+Week 03 turns the Week 02 CLIP + FAISS pipeline into an accurate, explainable
+matching engine with a 44-case dataset (14 pets / 10 persons / 20 items):
+metadata filtering, a weighted visual + text + location ranking, true
+multimodal image+text search, an integrated FastAPI service, and a measured
+evaluation baseline.
+
+```text
+Overall   n=47  Top-1 93.6%  Top-5 97.9%  Top-10 100%  MRR 0.9605
+Text      n=29  Top-1 89.7%   (the honest, harder mode)
+Combined  n=6   Top-1 100%
+FAISS search  0.004 ms  |  Total search ~80-110 ms (CLIP on CPU)
+```
+
+A complete **React + Tailwind frontend** (`learning/Week-03/frontend/`) is wired
+to the API: report a loss (photo + text + type + city) → top 5 matches with
+explainable score bars on `/`, and all 44 dataset cases as a filterable gallery
+on `/reports`. CORS + image serving (`/static`) are enabled on the FastAPI side.
+
+```bash
+cd learning/Week-03
+python app.py          # terminal 1 — API on :8000
+cd frontend
+npm install
+npm run dev            # terminal 2 — UI on :5173
+```
+
+Unit tests are fast and dependency-free (no model load):
 
 ```bash
 cd learning/Week-03
 python -m unittest discover -s tests -v
 ```
 
-The evaluator supports reciprocal rank and recall at `k`. It consumes a query's ranked case IDs and its expected matching case IDs, which makes it possible to compare retrieval changes using a fixed evaluation set.
+The evaluator (`evaluation/evaluate.py`) supports reciprocal rank and
+recall/top-k accuracy, and writes `evaluation/results.json`. See
+`learning/Week-03/README.md` for the full run order, the results, and the
+candidate next experiments.
 
 ## Running Week 02
 
@@ -64,7 +93,7 @@ The first CLIP run downloads model files and requires a working Python environme
 1. Explain the Week 01 embedding and cosine-similarity experiment.
 2. Explain why Week 02 precomputes case embeddings.
 3. Trace a request through React, Node.js, FastAPI, CLIP, and FAISS.
-4. Use the Week 03 evaluator to establish a baseline.
+4. Use the Week 03 evaluator baseline (`learning/Week-03/evaluation/results.json`).
 5. Change one variable at a time: labels, data, weights, or retrieval code.
 6. Record the metric change and the reason for the next experiment.
 
